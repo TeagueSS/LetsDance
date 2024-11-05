@@ -6,10 +6,24 @@ import os
 import mediapipe as mp
 import csv
 import time
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
 # Setting our logging level for documentation ->
 logging.basicConfig(level=logging.INFO)
+import psutil
+
+'''/
+Adding a method for saving to the local disk -> 
+'''
+def save_frame(frame_data):
+    # Creating out frame path ->
+    frame_path, frame = frame_data
+    # Writing to our local disk ->
+    cv2.imwrite(frame_path, frame)
+
 
 def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
+
 
     logging.info("Attempting to import" + videoPath)
     # Here we need to turn a video in to a folder of syncedFrames
@@ -33,26 +47,37 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
     logging.info("Starting video frame timings")
     start_time = time.time()
     logging.info("Started Converting Video")
-    # Looping until we run out of frames ->
-    while True:
-        # Reading in our frame
-        ret, frame = cap.read()
-        if not ret:
-            # Breaking if there are no frames left ->
-            break
 
-        # Getting our filepath for our frame ->
-        framePath = os.path.join(outputFolderPath, f'frame_{frame_count:04d}.png')
-        # Save each frame in the specified output folder
-        cv2.imwrite(framePath, frame)
+    # Using ThreadPoolExecutor for concurrent processing
+    with ThreadPoolExecutor() as executor:  # Adjust the number of workers as needed
 
-        # Now that we have saved our frame we can update our export CSV ->
-        # Calculate the timestamp for the frame
-        timestamp = frame_count / fps  # Time in seconds
-        frameTimings.append([framePath, timestamp])  # Append file path and timestamp
+        # Looping until we run out of frames ->
+        while True:
+            # Reading in our frame
+            ret, frame = cap.read()
+            if not ret:
+                # Breaking if there are no frames left ->
+                break
 
-        # Increasing our frame count
-        frame_count += 1
+            # Crop the frame: remove 1/3 from the left and right
+            height, width = frame.shape[:2]
+            crop_width = width // 3  # Calculate 1/3 of the width
+            cropped_frame = frame[:, crop_width:width - crop_width]  # Crop left and right
+
+            # Getting our filepath for our frame ->
+            framePath = os.path.join(outputFolderPath, f'frame_{frame_count:04d}.png')
+
+            # Submit the frame save task to the executor
+            executor.submit(save_frame, (framePath, cropped_frame))
+
+            # Now that we have saved our frame we can update our export CSV ->
+            # Calculate the timestamp for the frame
+            timestamp = frame_count / fps  # Time in seconds
+            frameTimings.append([framePath, timestamp])  # Append file path and timestamp
+
+            # Increasing our frame count
+            frame_count += 1
+            del frame, cropped_frame
 
     # Saving our CSV file with all of our frames
     csv_file_path = os.path.join(outputFolderPath, 'frame_timestamps.csv')
@@ -64,7 +89,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
     # Logging completion of video conversion
     logging.info("Conversion Completed in " + str(time.time() - start_time) + " seconds")
     logging.info("Converted: " + str(len(frameTimings)) + " frames")
-    logging.info("Average Frames converted per second: " + str(frame_count / len(frameTimings)) + " frames")
+    logging.info("Average Frames converted per second: " + str(frame_count / (time.time() - start_time)) + " frames")
     logging.info("Exported to: " + outputFolderPath)
     logging.info("Frame Sync expored to:" + csv_file_path)
 
