@@ -1,16 +1,22 @@
 import logging
-
+import threading
 import numpy as np
 import cv2
 import os
 import mediapipe as mp
 import csv
 import time
+import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 # Setting our logging level for documentation ->
 logging.basicConfig(level=logging.INFO)
+import h5py
 import psutil
+
+# Initialize a lock for writing to the HDF5 file
+lock = threading.Lock()
+
 
 '''/
 Adding a method for saving to the local disk -> 
@@ -22,7 +28,13 @@ def save_frame(frame_data):
     cv2.imwrite(frame_path, frame)
 
 
-def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
+def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoName: str):
+
+    ###TODO
+    ### Create the full output directory path
+    output_folder = os.path.join(outputFolderPath, videoName)
+    # Creating that sub folder ->
+    os.makedirs(output_folder, exist_ok=True)
 
 
     logging.info("Attempting to import" + videoPath)
@@ -65,7 +77,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
             cropped_frame = frame[:, crop_width:width - crop_width]  # Crop left and right
 
             # Getting our filepath for our frame ->
-            framePath = os.path.join(outputFolderPath, f'frame_{frame_count:04d}.png')
+            framePath = os.path.join(output_folder, f'frame_{frame_count:04d}.png')
 
             # Submit the frame save task to the executor
             executor.submit(save_frame, (framePath, cropped_frame))
@@ -80,7 +92,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
             del frame, cropped_frame
 
     # Saving our CSV file with all of our frames
-    csv_file_path = os.path.join(outputFolderPath, 'frame_timestamps.csv')
+    csv_file_path = os.path.join(outputFolderPath,videoName, '.csv')
     with open(csv_file_path, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(['Frame File Path', 'Timestamp (s)'])  # Header
@@ -96,40 +108,164 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str):
     cap.release()
     print(f"Frames saved to {outputFolderPath}")
 
-
-
-###TODO
-def convertFrameIntoPose(inputPath: str, outputFolderPath: str, subFolderPath: str):
+def convertFrameIntoPose(imagePath: str):
+    # Load the image
+    logging.info("Attempting to import" + imagePath)
+    image = cv2.imread(imagePath)
+    # Seeing if we loaded our image
+    if image is None:
+        logging.error("Unable to open image " + imagePath)
+        print(f"Error: Could not load image at {imagePath}")
+        return None
+    # Importing our tools:
+    logging.info("Successfully opened image " + imagePath)
     #Defining our resources ->
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
 
-    # Create the full output directory path
-    output_folder = os.path.join(outputFolderPath, subFolderPath)
-    # Creating that sub folder ->
-    os.makedirs(output_folder, exist_ok=True)
+    # Initialize MediaPipe Pose with static image mode (since we're using individual frames)
+    with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
+        # Process the image to extract pose landmarks
+        results = pose.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
-    # Taking our
-    """/
-    with mp_pose.Pose(static_image_mode=True, model_complexity=2) as pose:
-        for frame_file in os.listdir(input_folder):
-            frame_path = os.path.join(input_folder, frame_file)
-            image = cv2.imread(frame_path)
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results = pose.process(image_rgb)
+        # Check if landmarks were detected
+        if not results.pose_landmarks:
+            print("No pose landmarks detected.")
+            return None
 
-            # Draw the pose annotation on the image
-            if results.pose_landmarks:
-                mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        # Extract landmarks and their visibility
+        landmarks = []
+        for landmark in results.pose_landmarks.landmark:
+            # Each landmark has x, y, z, and visibility attributes
+            landmarks.append({
+                'x': landmark.x,
+                'y': landmark.y,
+                'z': landmark.z,
+                'visibility': landmark.visibility
+            })
 
-            # Save the annotated image
-            cv2.imwrite(os.path.join(output_folder, frame_file), image)
-    """
+        # Delete the output photo ->
+
+        # For now I wanna see the overlay it creates ->
+        """/
+        # Draw landmarks on the image for visualization (optional)
+        annotated_image = image.copy()
+        mp_drawing.draw_landmarks(
+            annotated_image,
+            results.pose_landmarks,
+            mp_pose.POSE_CONNECTIONS,
+            mp_drawing.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2),
+            mp_drawing.DrawingSpec(color=(0, 255, 255), thickness=2, circle_radius=2)
+        )
+
+        # Save the annotated image (optional)
+        output_path = imagePath.replace('.png', '_pose.png')
+        cv2.imwrite(output_path, annotated_image)
+        print(f"Annotated image saved at: {output_path}")
+        """
+        # Delete the original image file
+        try:
+            os.remove(imagePath)
+            logging.info(f"Deleted image file: {imagePath}")
+        except OSError as e:
+            logging.error(f"Error deleting file {imagePath}: {e}")
+
+        # Save these values ->
+        print(f"Pose landmarks detected: {len(landmarks)}")
+        #print(landmarks)
+        return landmarks
 
 
-#Creating our testing paths
-convertedVideoPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames"
-videoToConvert = "/Users/teaguesangster/Code/Python/CS450/DataSetup/downloads/Just Dance Hits： Only Girl (In The World) by Rihanna [12.9k]_video.mp4"
-convertVideoIntoSyncedFrames(videoToConvert , convertedVideoPath)
+# Multithreaded function to process a single frame and save the pose to HDF5
+def process_and_save_frame(frame_path, frame_number, h5file):
+    try:
+        # Retrieve landmarks from the frame
+        landmarks = convertFrameIntoPose(frame_path)
+        # Check if landmarks is None or empty
+        if landmarks is None or len(landmarks) == 0:
+            logging.error(f"No landmarks found for frame {frame_number} at {frame_path}.")
+            return
+        # Prepare data in a NumPy array format
+        landmark_array = np.array([[lm['x'], lm['y'], lm['z'], lm['visibility']] for lm in landmarks])
+        # Write data to the HDF5 file using a lock to ensure thread safety
+        with lock:
+            # Create or update a dataset for this frame's landmarks
+            h5file.create_dataset(f"frame_{frame_number}", data=landmark_array)
+        logging.info(f"Successfully processed and saved landmarks for frame {frame_number}.")
+    except Exception as e:
+        logging.error(f"Error processing frame {frame_number} ({frame_path}): {e}")
+
+
+# Method to convert folder of frames and turn them into a H5 File ->
+def convertFramesIntoHDF5(framesDirectory, h5_filepath):
+    # Get a list of all frame files in the specified directory
+    logging.info(f"Attempting to import frames from {framesDirectory}")
+
+    # Ensure the directory exists
+    if not os.path.isdir(framesDirectory):
+        logging.error(f"Directory not found: {framesDirectory}")
+        return
+
+    # Collect all frame file paths
+    frames = []
+    for filename in os.listdir(framesDirectory):
+        # Add your specific frame file type checks here
+        if filename.endswith(('.jpg', '.png', '.jpeg')):  # Adjust file types as needed
+            frame_path = os.path.join(framesDirectory, filename)
+            frames.append(frame_path)
+
+    logging.info(f"Found {len(frames)} frame files to process.")
+
+    # Open HDF5 file in append mode to allow multiple dataset additions
+    with h5py.File(h5_filepath, 'a') as h5file:
+        logging.info("Successfully opened h5 file")
+
+        # Thread pool to handle frame processing
+        with ThreadPoolExecutor() as executor:
+            logging.info("Starting to process frames")
+            # Process each frame asynchronously
+            futures = []
+            for frame_number, frame_path in enumerate(frames):
+                # Schedule frame processing and saving
+                future = executor.submit(process_and_save_frame, frame_path, frame_number, h5file)
+                futures.append(future)
+
+            # Wait for all futures to complete
+            for future in futures:
+                future.result()
+
+
+
+
+            #Creating our testing paths
+#convertedVideoPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames"
+#videoToConvert = "/Users/teaguesangster/Code/Python/CS450/DataSetup/downloads/Just Dance Hits： Only Girl (In The World) by Rihanna [12.9k]_video.mp4"
+#convertVideoIntoSyncedFrames(videoToConvert , convertedVideoPath , "Only Girl Rihanna")
+
+# Testing our "landmarks" on our person ->
+#convertFrameIntoPose("/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/frame_0900.png")
+h5_filepath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only_Girl_Rihanna_landmarks.h5"
+#convertFramesIntoHDF5("/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only Girl Rihanna",h5_filepath )
+
 # Converting our test video to a
 
+# Opening our file ->
+# Load HDF5 file
+print("Attempting to import frames from HDF5 file")
+# Open the HDF5 file
+# Open the HDF5 file and load a specific dataset
+with h5py.File(h5_filepath, 'r') as h5file:
+    # Access the dataset; replace 'your_dataset_name' with the actual name
+    data = h5file['frame_0'][:]  # For example, accessing the dataset for the first frame
+
+# Check the shape of the data to ensure it's 2D or can be reshaped to 2D
+print("Data shape:", data.shape)
+
+# If necessary, reshape the data (example for demonstration; adjust as needed)
+# data = data.reshape((height, width))  # Use appropriate dimensions based on your data
+
+# Display the data
+plt.imshow(data, cmap='gray')  # Use 'gray' for grayscale; adjust colormap as needed
+plt.colorbar()  # Optional: adds a colorbar to the side
+plt.title("Frame 0 Data Visualization")  # Optional: add a title
+plt.show()
