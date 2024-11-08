@@ -66,10 +66,7 @@ def pointsTo3DSkeleton(skeletalPoints):
 
     fig.show()
 
-
 #Defining our test file
-testPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only Girl Rihanna/frame_0747.png"
+#testPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only Girl Rihanna/frame_0751.png"
 # Running our test to get our data from one of our file paths
-pointsTo3DSkeleton(convertFrameIntoPose(testPath))
-
-
+#pointsTo3DSkeleton(convertFrameIntoPose(testPath))

@@ -17,7 +17,6 @@ import psutil
 # Initialize a lock for writing to the HDF5 file
 lock = threading.Lock()
 
-
 '''/
 Adding a method for saving to the local disk -> 
 '''
@@ -108,7 +107,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
     cap.release()
     print(f"Frames saved to {outputFolderPath}")
 
-def convertFrameIntoPose(imagePath: str):
+def convertFrameIntoPose(imagePath: str, delete: bool):
     # Load the image
     logging.info("Attempting to import" + imagePath)
     image = cv2.imread(imagePath)
@@ -163,12 +162,13 @@ def convertFrameIntoPose(imagePath: str):
         cv2.imwrite(output_path, annotated_image)
         print(f"Annotated image saved at: {output_path}")
         """
-        # Delete the original image file
-        try:
-            os.remove(imagePath)
-            logging.info(f"Deleted image file: {imagePath}")
-        except OSError as e:
-            logging.error(f"Error deleting file {imagePath}: {e}")
+        if delete:
+            # Delete the original image file
+            try:
+                os.remove(imagePath)
+                logging.info(f"Deleted image file: {imagePath}")
+            except OSError as e:
+                logging.error(f"Error deleting file {imagePath}: {e}")
 
         # Save these values ->
         print(f"Pose landmarks detected: {len(landmarks)}")
@@ -180,13 +180,13 @@ def convertFrameIntoPose(imagePath: str):
 def process_and_save_frame(frame_path, frame_number, h5file):
     try:
         # Retrieve landmarks from the frame
-        landmarks = convertFrameIntoPose(frame_path)
+        landmarks = convertFrameIntoPose(frame_path , True)
         # Check if landmarks is None or empty
         if landmarks is None or len(landmarks) == 0:
             logging.error(f"No landmarks found for frame {frame_number} at {frame_path}.")
             return
         # Prepare data in a NumPy array format
-        landmark_array = np.array([[lm['x'], lm['y'], lm['z'], lm['visibility']] for lm in landmarks])
+        landmark_array = np.array([[lm['x'], lm['y'], lm['z']] for lm in landmarks])
         # Write data to the HDF5 file using a lock to ensure thread safety
         with lock:
             # Create or update a dataset for this frame's landmarks
@@ -224,9 +224,13 @@ def convertFramesIntoHDF5(framesDirectory, h5_filepath):
         with ThreadPoolExecutor() as executor:
             logging.info("Starting to process frames")
             # Process each frame asynchronously
+
             futures = []
             for frame_number, frame_path in enumerate(frames):
                 # Schedule frame processing and saving
+                ###TODO Here we need to change it so that it appaends to an array,
+                    # and then after it's all been added, we sort, and save ->
+                dataPoints = []
                 future = executor.submit(process_and_save_frame, frame_path, frame_number, h5file)
                 futures.append(future)
 
@@ -234,38 +238,69 @@ def convertFramesIntoHDF5(framesDirectory, h5_filepath):
             for future in futures:
                 future.result()
 
-
-
-
-            #Creating our testing paths
+# Tests for converting Video Into Frames ->
 #convertedVideoPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames"
 #videoToConvert = "/Users/teaguesangster/Code/Python/CS450/DataSetup/downloads/Just Dance Hits： Only Girl (In The World) by Rihanna [12.9k]_video.mp4"
 #convertVideoIntoSyncedFrames(videoToConvert , convertedVideoPath , "Only Girl Rihanna")
 
+
 # Testing our "landmarks" on our person ->
 #convertFrameIntoPose("/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/frame_0900.png")
-h5_filepath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only_Girl_Rihanna_landmarks.h5"
+#h5_filepath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only_Girl_Rihanna_landmarks.h5"
 #convertFramesIntoHDF5("/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only Girl Rihanna",h5_filepath )
 
 # Converting our test video to a
 
 # Opening our file ->
 # Load HDF5 file
-print("Attempting to import frames from HDF5 file")
+#print("Attempting to import frames from HDF5 file")
 # Open the HDF5 file
 # Open the HDF5 file and load a specific dataset
-with h5py.File(h5_filepath, 'r') as h5file:
+#with h5py.File(h5_filepath, 'r') as h5file:
     # Access the dataset; replace 'your_dataset_name' with the actual name
-    data = h5file['frame_0'][:]  # For example, accessing the dataset for the first frame
+    #data = h5file['frame_0'][:]  # For example, accessing the dataset for the first frame
 
 # Check the shape of the data to ensure it's 2D or can be reshaped to 2D
-print("Data shape:", data.shape)
+#print("Data shape:", data.shape)
 
 # If necessary, reshape the data (example for demonstration; adjust as needed)
 # data = data.reshape((height, width))  # Use appropriate dimensions based on your data
 
 # Display the data
-plt.imshow(data, cmap='gray')  # Use 'gray' for grayscale; adjust colormap as needed
-plt.colorbar()  # Optional: adds a colorbar to the side
-plt.title("Frame 0 Data Visualization")  # Optional: add a title
-plt.show()
+#plt.imshow(data, cmap='gray')  # Use 'gray' for grayscale; adjust colormap as needed
+#plt.colorbar()  # Optional: adds a colorbar to the side
+#plt.title("Frame 0 Data Visualization")  # Optional: add a title
+#plt.show()
+
+
+
+
+
+'''/
+TODO: 
+Im gonna argue that 
+1. We don't need all that data, and 
+2. our current Implementation doesn't label hands or feet etc for later 
+    reversal (Encoder / Decoder model)
+    
+-> For this reason it might make sense to rework this function 
+# Have it store all of these points in memory and then write them after?
+-> It's just a map of 3d points in space and the 3:30 video exported 
+    as 18MB -> I think we can hold it as a sorted 2d Array in memory,
+    and then just find another way to export that makes more sense 
+    (We should make a visulatizion function in python as we will have 
+    to do it later anyway on the other end of our function) 
+    
+    # We need to add timestamps -> 
+    https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/util/sequence/README.md#keys-related-to-images
+    "key	type	python call / c++ call	description
+image/timestamp	feature list int	add_image_timestamp / AddImageTimestamp	The timestamp in microseconds for the image.
+image/multi_encoded	feature list bytes list	add_image_multi_encoded / AddImageMultiEncoded	Storing multiple images at each timestep (e.g. from multiple camera views).
+image/label/index	feature list int list	add_image_label_index / AddImageLabelIndex	If an image at a specific timestamp should have a label, use this. If a range of time, prefer Segments instead."
+
+But we can still use HDL5 for viewing, we should try and make a function that can 
+visualize these points in 3d space 
+
+'''
+
+

@@ -2,13 +2,14 @@ import os
 import logging
 from ConvertVideo import *
 import pytest
-
+from visualisation import *
+from encode import SkeletonData
 
 # Defining our test file paths ->
 CONVERTED_VIDEO_PATH = "Outputs"
 VIDEO_NAME ="Only_Girl_Riannah"
 VIDEO_TO_CONVERT = "Test Video and Audio/TestVideo_Only_Girl_Rihanna.mp4"
-FRAME_PATH = "Test Video and Audio/frame_0289.png"
+FRAME_PATH = "Test Video and Audio/frame_0200.png"
 H5_FILEPATH = "Outputs/Only_Girl_Rihanna_landmarks.h5"
 AUDIO_PATH = "Test Video and Audio/Test Audio Only Girl Riannah.mp3"
 OUTPUT_PATH = "Outputs"
@@ -73,7 +74,7 @@ def test_convert_video_into_frames():
 
 def test_convert_frame_into_pose():
     logging.info(f"Testing pose extraction from frame: {FRAME_PATH}")
-    landmarks = convertFrameIntoPose(FRAME_PATH)
+    landmarks = convertFrameIntoPose(FRAME_PATH , False)
     if landmarks:
         logging.info(f"Extracted {len(landmarks)} landmarks.")
     else:
@@ -84,12 +85,33 @@ def test_convert_frames_into_hdf5():
     convertFramesIntoHDF5(OUTPUT_FRAMES_PATH, H5_FILEPATH)
     logging.info("Frames conversion to HDF5 completed.")
 
+
+
+def test_view_skeletal_data():
+    logging.info(f"Testing saving skeletal data...")
+    logging.info(f"Getting skeletal data from: '{FRAME_PATH}' ")
+    landmarks = convertFrameIntoPose(FRAME_PATH , False)
+    # Visualizing our data
+    logging.info("Opening our landmarks in browser -> (please allow 5 seconds) ")
+    pointsTo3DSkeleton(landmarks)
+
+def test_save_skeletal_data():
+    logging.info(f"Testing saving skeletal data...")
+    logging.info(f"Getting skeletal data from: '{FRAME_PATH}' ")
+    landmarks = convertFrameIntoPose(FRAME_PATH , False)
+    logging.info("Creating an instance of SkeletonData... ")
+    skeltonData = SkeletonData()
+    logging("Attempting to save our Skeletal Data:")
+    skeltonData.add_frame_data(0,0,landmarks)
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Run tests
     test_convert_video_into_frames()
     test_convert_frame_into_pose()
     test_convert_frames_into_hdf5()
+    test_save_skeletal_data()
+    test_view_skeletal_data()
     test_packages()
     logging.info("Tests Complete.")
 
