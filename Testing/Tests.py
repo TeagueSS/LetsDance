@@ -3,7 +3,7 @@ import logging
 from ConvertVideo import *
 import pytest
 from visualisation import *
-from encode import SkeletonData
+from encode import SkeletonData, DataSaver
 
 # Defining our test file paths ->
 CONVERTED_VIDEO_PATH = "Outputs"
@@ -101,8 +101,15 @@ def test_save_skeletal_data():
     landmarks = convertFrameIntoPose(FRAME_PATH , False)
     logging.info("Creating an instance of SkeletonData... ")
     skeltonData = SkeletonData()
-    logging("Attempting to save our Skeletal Data:")
+    logging.info("Attempting to save our Skeletal Data:")
     skeltonData.add_frame_data(0,0,landmarks)
+    # Creating a data saving object ->
+    data_saver = DataSaver(skeltonData.data)
+    # Saving our data
+    ###TODO we need to fix the output to take in the folder path as well
+    #   And then join it later on
+    data_saver.save_to_csv("TestingOutputs/Only_Girl_Rihanna_landmarks.csv")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
