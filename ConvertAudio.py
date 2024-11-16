@@ -64,5 +64,28 @@ class AudioHandler:
 
         # Remove this return
         return 0
+    
+    def convertAudioFrame(songPath: str , time: float , windowSize: int = 1024):
+        
+        #Load the audio file
+        audio, sampleRate = librosa.load(songPath, sr=None)
+
+        #Convert time to sample index
+        sampleIndex = int(time * sampleRate)
+
+        #Extract the audio around desired time
+        startIndex = max(0, sampleIndex- windowSize //2)
+        endIndex = min(len(audio), sampleIndex + windowSize //2)
+        audioSegment = audio[startIndex:endIndex]
+
+
+        #Convert the audio to a frequency
+        spectrumData = np.abs(librosa.stft(audioSegment, n_fft=windowSize))
+        
+        #Return the data as an array
+        return spectrumData
+    
+    
+        
 
 
