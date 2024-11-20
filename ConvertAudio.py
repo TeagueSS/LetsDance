@@ -1,3 +1,5 @@
+import logging
+
 import librosa
 import numpy as np
 
@@ -65,7 +67,56 @@ class AudioHandler:
 
         # Remove this return
         return 0
-    
+
+    def create_audio_map(self,  start_ms: int, end_ms: int):
+        """
+        Create an audio map (e.g., spectrogram) for a specific segment of an audio file.
+
+        Args:
+            audio_path (str): Path to the audio file.
+            start_ms (int): Start time in milliseconds.
+            end_ms (int): End time in milliseconds.
+
+        Returns:
+            np.ndarray: A spectrogram or other frequency-domain representation of the audio segment.
+        """
+
+        # Load the audio file
+        audio = self.audio
+        sr = self.sampleRate
+
+        # Convert millisecond timings to sample indices
+        start_sample = int(float(start_ms) / 1000 * sr)
+        end_sample = int(float(end_ms) / 1000 * sr)
+
+        # Ensure the indices are valid
+        if start_sample < 0 or end_sample > len(audio) or start_sample >= end_sample:
+            raise ValueError(f"Invalid audio indices: start={start_sample}, end={end_sample}, len(audio)={len(audio)}")
+
+        # Extract the audio segment
+        audio_segment = audio[start_sample:end_sample]
+
+        # Ensure the segment is not empty or too short
+        if len(audio_segment) == 0:
+            raise ValueError("Extracted audio segment is empty.")
+        if len(audio_segment) < 1024:  # Minimum window size for STFT
+            audio_segment = np.pad(audio_segment, (0, 1024 - len(audio_segment)), mode="constant")
+
+        # Generate a spectrogram using Short-Time Fourier Transform (STFT)
+        n_fft = 1024  # Window size
+        hop_length = n_fft // 4  # Hop length for STFT
+        spectrogram = np.abs(librosa.stft(audio_segment, n_fft=n_fft, hop_length=hop_length))
+
+        return spectrogram
+
+
+
+
+
+
+
+
+
     def convertAudioFrame(self, time: float , windowSize: int = 1024):
         
         #Load the audio file

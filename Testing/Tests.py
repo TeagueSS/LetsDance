@@ -5,7 +5,8 @@ from ConvertAudio import AudioHandler
 from ConvertVideo import *
 import pytest
 from visualisation import *
-from encode import SkeletonData, DataSaver
+from encode import SkeletonData, DataSaver , AudioData
+from CombineAudioAndVideo import *
 
 # Defining our test file paths ->
 CONVERTED_VIDEO_PATH = "Outputs"
@@ -125,6 +126,102 @@ def test_split_audio_frames():
     logging.info("Displaying our song")
     showAudioFrames(audio_frame , audio_Handler.sampleRate)
 
+def test_audio_data_storage():
+    # Log the start of the test
+    logging.info("Testing storing audio frames into AudioData...")
+
+    # Initialize an instance of the AudioHandler class
+    audio_Handler = AudioHandler("/Users/teaguesangster/Code/Python/CS450/DataSetup/Testing/Test Video and Audio/Test Audio Only Girl Riannah.mp3")
+
+    # Create an AudioData object to store frames
+    audio_data = AudioData("Test Audio Only Girl Riannah")
+
+    # Generate and store 3 audio frames
+    logging.info("Attempting to process and store frames...")
+    for frame_number in range(1, 3):
+        frame_time = frame_number  # Assuming each frame is 1 second apart for simplicity
+        audio_frame = audio_Handler.convertAudioFrame(frame_time, 10)
+        audio_data.add_frame_data(frame_number, frame_time, audio_frame)
+
+    # Display the saved frames for verification
+    logging.info("Displaying stored frames:")
+    print(audio_data.frames)
+
+    # Test displaying the first frame
+    logging.info("Displaying the first frame's spectrogram:")
+    first_frame = audio_data.get_frame(1)
+    if first_frame:
+        showAudioFrames(first_frame["data_frame"], audio_Handler.sampleRate)
+    else:
+        logging.error("Failed to retrieve the first frame!")
+
+
+
+def test_video_and_audio_linking():
+    logging.info("Testing video linking...")
+
+    # Try to open our video
+    cap = cv2.VideoCapture(VIDEO_TO_CONVERT)
+    # Check if the video was opened successfully
+    if not cap.isOpened():
+        logging.error("Unable to open video " + VIDEO_TO_CONVERT)
+        print("Error: Could not open video.")
+        return
+
+    # Getting our FPS ->
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Releasing our cap
+    cap.release()
+    # Getting Our Video Path ->
+    logging.info(f"Testing conversion of video '{VIDEO_NAME}' into frames...")
+    csv_Path = convertVideoIntoSyncedFrames(VIDEO_TO_CONVERT, OUTPUT_PATH, VIDEO_NAME)
+    logging.info("Video conversion completed.")
+    # Now that we have our Video information lets get our audio information
+    ActionHandler = CombineAudioAndVideo("No Youtube link needed")
+    sycned_frames = ActionHandler.map_audio_to_video_frames(csv_Path, AUDIO_PATH, fps)
+    # Printing the first few synced frames ->
+    # Assuming `mapping` is a list of dictionaries, as returned by the function
+    for i, entry in enumerate(sycned_frames[:5], start=1):
+        print(f"Entry {i}:")
+        print(f"  Frame #: {entry['Frame #']}")
+        print(f"  Frame File Path: {entry['Frame File Path']}")
+        print(f"  Audio Start Index: {entry['Audio Start Index']}")
+        print(f"  Audio End Index: {entry['Audio End Index']}")
+        print()  # Add a blank line for readability
+
+
+def test_Muti_Threaded_Sync_Conversion():
+    logging.info("Testing video linking...")
+
+    # Try to open our video
+    cap = cv2.VideoCapture(VIDEO_TO_CONVERT)
+    # Check if the video was opened successfully
+    if not cap.isOpened():
+        logging.error("Unable to open video " + VIDEO_TO_CONVERT)
+        print("Error: Could not open video.")
+        return
+
+    # Getting our FPS ->
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Releasing our cap
+    cap.release()
+    # Getting Our Video Path ->
+    logging.info(f"Testing conversion of video '{VIDEO_NAME}' into frames...")
+    csv_Path = convertVideoIntoSyncedFrames(VIDEO_TO_CONVERT, OUTPUT_PATH, VIDEO_NAME)
+    logging.info("Video conversion completed.")
+    # Now that we have our Video information lets get our audio information
+    ActionHandler = CombineAudioAndVideo("No Youtube link needed")
+    sycned_frames = ActionHandler.map_audio_to_video_frames(csv_Path, AUDIO_PATH, fps)
+
+    # Now that we have our frames trying to convert them
+    logging.info("Video Frames found, lets convert!")
+    print("Initating Frame Processing ")
+
+    frames = ActionHandler.process_audio_and_video_frames_Multi_Threaded(sycned_frames, "Only Girl", AUDIO_PATH, fps)
+    # Printing our frames
+    logging.info("Frames Processing completed.")
+    logging.info("Printing results")
+    print(frames.get_frame(0))
 
 
 
@@ -137,5 +234,6 @@ if __name__ == "__main__":
     test_save_skeletal_data()
     test_view_skeletal_data()
     test_packages()
+    test_split_audio_frames()
     logging.info("Tests Complete.")
 

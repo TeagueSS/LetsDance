@@ -76,7 +76,7 @@ def pointsTo3DSkeleton(skeletalPoints):
 def showAudioFrames(spectrumData , sampleRate):
     # Plot the spectrogram
     plt.figure(figsize=(10, 6))
-    #
+    # Creating our Graph
     librosa.display.specshow(
         librosa.amplitude_to_db(spectrumData, ref=np.max),
         sr=sampleRate,
@@ -84,6 +84,7 @@ def showAudioFrames(spectrumData , sampleRate):
         x_axis="time",
         y_axis="log"
     )
+    # Defining our graph attributes ->
     plt.colorbar(format="%+2.0f dB")
     plt.title("Spectrogram")
     plt.xlabel("Time (s)")

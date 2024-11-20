@@ -106,6 +106,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
 
     cap.release()
     print(f"Frames saved to {outputFolderPath}")
+    return csv_file_path
 
 def convertFrameIntoPose(imagePath: str, delete: bool):
     # Load the image
@@ -138,7 +139,7 @@ def convertFrameIntoPose(imagePath: str, delete: bool):
             # Each landmark has x, y, z, and visibility attributes
             landmarks.append({
                 'x': landmark.x,
-                'y': landmark.audio,
+                'y': landmark.y,
                 'z': landmark.z,
                 'visibility': landmark.visibility
             })
