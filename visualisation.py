@@ -1,9 +1,14 @@
+import librosa
 import numpy as np
 import mediapipe as mp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from ConvertVideo import convertFrameIntoPose
 import plotly.graph_objects as go
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import numpy as np
 
 # This class exists to write methods for
 # taking in a given converted file format
@@ -65,6 +70,29 @@ def pointsTo3DSkeleton(skeletalPoints):
     ))
 
     fig.show()
+
+
+
+def showAudioFrames(spectrumData , sampleRate):
+    # Plot the spectrogram
+    plt.figure(figsize=(10, 6))
+    #
+    librosa.display.specshow(
+        librosa.amplitude_to_db(spectrumData, ref=np.max),
+        sr=sampleRate,
+        hop_length=512,
+        x_axis="time",
+        y_axis="log"
+    )
+    plt.colorbar(format="%+2.0f dB")
+    plt.title("Spectrogram")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Frequency (Hz)")
+    plt.tight_layout()
+
+    # Save the plot as an image or HTML file
+    plt.savefig("spectrogram.png")
+    plt.show()
 
 #Defining our test file
 #testPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/VideoFrames/Only Girl Rihanna/frame_0751.png"

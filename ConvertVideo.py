@@ -138,7 +138,7 @@ def convertFrameIntoPose(imagePath: str, delete: bool):
             # Each landmark has x, y, z, and visibility attributes
             landmarks.append({
                 'x': landmark.x,
-                'y': landmark.y,
+                'y': landmark.audio,
                 'z': landmark.z,
                 'visibility': landmark.visibility
             })

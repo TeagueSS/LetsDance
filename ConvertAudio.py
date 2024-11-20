@@ -18,29 +18,30 @@ class AudioHandler:
         # Storing our Audio path for later
         self.audio_path = audio_path
         # Saving our y and SR
-        self.y, self.sr = self.loadFile(self.audio_path)
+        self.audio, self.sampleRate = self.loadFile(self.audio_path)
 
     def loadFile(self, audio_path):
         # Load the audio file
-        y, sr = librosa.load(audio_path, sr=None)
+        #audio, sampleRate
+        audio, sampleRate = librosa.load(audio_path, sr=None)
 
         # Get tempo and beat frames
-        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        tempo, beat_frames = librosa.beat.beat_track(y=audio, sr=sampleRate)
+        beat_times = librosa.frames_to_time(beat_frames, sr=sampleRate)
         # Sharing the info we grabbed
         print("Tempo:", tempo)
         print("Beat times:", beat_times)
-        return y, sr
+        return audio, sampleRate
 
 
     ###TODO:
     #   get the audio data at a point in the audio file, from
     def getAudioDataAt(self , time:float):
         # Convert time to frame index
-        frame_index = librosa.time_to_frames(time, sr=self.sr)
+        frame_index = librosa.time_to_frames(time, sr=self.sampleRate)
 
         # Get the audio data at that point in time
-        audio_segment = self.y[frame_index:]
+        audio_segment = self.audio[frame_index:]
         # Printing that we got the data ->
         print(f"Audio data at {time} seconds:", audio_segment)
         return audio_segment
@@ -65,23 +66,30 @@ class AudioHandler:
         # Remove this return
         return 0
     
-    def convertAudioFrame(songPath: str , time: float , windowSize: int = 1024):
+    def convertAudioFrame(self, time: float , windowSize: int = 1024):
         
         #Load the audio file
-        audio, sampleRate = librosa.load(songPath, sr=None)
+        #audio, sampleRate = librosa.load(songPath, sr=None)
 
         #Convert time to sample index
-        sampleIndex = int(time * sampleRate)
+        sampleIndex = int(time * self.sampleRate)
 
         #Extract the audio around desired time
         startIndex = max(0, sampleIndex- windowSize //2)
-        endIndex = min(len(audio), sampleIndex + windowSize //2)
-        audioSegment = audio[startIndex:endIndex]
+        endIndex = min(len(self.audio), sampleIndex + windowSize //2)
+        audioSegment = self.audio[startIndex:endIndex]
+
+        # Ensure the audio segment is not empty or too short
+        if len(audioSegment) == 0:
+            raise ValueError("Extracted audio segment is empty.")
+        if len(audioSegment) < windowSize:
+            audioSegment = np.pad(audioSegment, (0, windowSize - len(audioSegment)), mode="constant")
 
 
         #Convert the audio to a frequency
-        spectrumData = np.abs(librosa.stft(audioSegment, n_fft=windowSize))
-        
+        hop_length = windowSize // 4  # Explicitly set hop length
+        spectrumData = np.abs(librosa.stft(audioSegment, n_fft=windowSize, hop_length=hop_length))
+
         #Return the data as an array
         return spectrumData
     

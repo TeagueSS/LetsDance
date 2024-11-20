@@ -1,5 +1,7 @@
 import os
 import logging
+
+from ConvertAudio import AudioHandler
 from ConvertVideo import *
 import pytest
 from visualisation import *
@@ -109,6 +111,21 @@ def test_save_skeletal_data():
     ###TODO we need to fix the output to take in the folder path as well
     #   And then join it later on
     data_saver.save_to_csv("TestingOutputs/Only_Girl_Rihanna_landmarks.csv")
+
+
+def test_split_audio_frames():
+    # Printing out what we want to test
+    logging.info(f"Testing splitting audio frames into {OUTPUT_FRAMES_PATH}...")
+    # Creating an instance of our Audio conversion class:
+    audio_Handler = AudioHandler("/Users/teaguesangster/Code/Python/CS450/DataSetup/Testing/Test Video and Audio/Test Audio Only Girl Riannah.mp3")
+    # Getting our audio frame
+    logging.info("Attempting to format our song ")
+    audio_frame = audio_Handler.convertAudioFrame(1,10)
+    # Displaying our Audio frame ->
+    logging.info("Displaying our song")
+    showAudioFrames(audio_frame , audio_Handler.sampleRate)
+
+
 
 
 if __name__ == "__main__":
