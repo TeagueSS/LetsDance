@@ -27,7 +27,7 @@ class SyncedSkeletonDataAndAudio:
         self.columns = ["frame_number", "frame_time"] + [f"{part}_{axis}" for part in self.bodyParts for axis in ["x", "y", "z"]]
         self.skeleton_data = pd.DataFrame(columns=self.columns)
 
-    def add_frame_data(self, frame_number: int, frame_time: float, landmarks: dict, audio_frame):
+    def add_frame_data(self, frame_number: int, frame_time: float, landmarks: dict, audio_frame: dict):
         """
         Adds synchronized data for a single frame.
 
@@ -39,7 +39,7 @@ class SyncedSkeletonDataAndAudio:
         """
         # Add audio frame data
         self.audio_data.add_frame_data(frame_number, frame_time, audio_frame)
-
+        print(f"Type of landmarks: {type(landmarks)}, Content: {landmarks}")
 
         # Prepare skeleton frame data
         skeleton_row = {"frame_number": frame_number, "frame_time": frame_time}
@@ -151,9 +151,10 @@ class AudioData:
         """
         self.song_name = song_name
         # Create an empty DataFrame to store frames and their timings
-        self.frames = pd.DataFrame(columns=["frame_number", "frame_time", "data_frame"])
+        #self.frames = pd.DataFrame(columns=["frame_number", "frame_time", "data_frame"])
+        self.frames = []  # Each frame will be a dictionary
 
-    def add_frame_data(self, frame_number: int, frame_time: float, data_frame):
+    def add_frame_data(self, frame_number: int, frame_time: float, features: dict):
         """
         Add a frame and its timing to the AudioData object.
 
@@ -163,16 +164,13 @@ class AudioData:
             data_frame: The data associated with the frame (e.g., frequency or amplitude data).
         """
         # Append the frame data to the DataFrame
-        self.frames = pd.concat(
-            [self.frames, pd.DataFrame({
-                "frame_number": [frame_number],
-                "frame_time": [frame_time],
-                "data_frame": [data_frame]
-            })],
-            ignore_index=True
-        )
+        self.frames.append({
+            "frame_number": frame_number,
+            "frame_time": frame_time,
+            "features": features
+        })
         # Ensure the frames are sorted by frame_number
-        self.frames = self.frames.sort_values(by="frame_number").reset_index(drop=True)
+        self.frames = sorted(self.frames, key=lambda x: x["frame_number"])
 
     def get_frame(self, frame_number: int):
         """

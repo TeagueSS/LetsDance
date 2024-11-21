@@ -6,7 +6,6 @@ import librosa.feature
 import librosa.display
 from matplotlib import pyplot as plt
 
-
 class AudioHandler:
     """/
         Meant to  process audio files using the librosa library. ->
@@ -49,10 +48,29 @@ class AudioHandler:
         # Getting the cleaned chromaGraph Data
         self.chromagram_stft = librosa.feature.chroma_stft(y=self.audio, sr=self.sampleRate)
 
+    def getFrameStart(self , start_ms:int):
+        start_sec = start_ms / 1000
+        # Convert seconds to frame indices
+        start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
+        return start_frame
 
+    def getFrameEnd(self, end_ms:int):
+        end_sec = end_ms / 1000
+        # Convert seconds to frame indices
+        end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
+        return end_frame
+    def get_number_of_frames_in(self, start_ms: int, end_ms: int):
+        # Convert milliseconds to seconds
+        start_sec = start_ms / 1000
+        end_sec = end_ms / 1000
 
-    ###TODO:
-    #   get the audio data at a point in the audio file, from
+        # Convert seconds to frame indices
+        start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
+        end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
+
+        # Return the number of frames in our section
+        return end_frame - start_frame
+
     def getAudioDataAt(self, time: float):
         # Convert time to frame index
         frame_index = librosa.time_to_frames(time, sr=self.sampleRate)
@@ -78,61 +96,107 @@ class AudioHandler:
         # Remove this return
         return 0
 
-    def view_audio_map(self, start_ms: int, end_ms: int):
+    def view_audio_map(self, start_sec, end_sec, tempogram_section, chromagram_stft_section,
+                       chromagram_cqt_section,
+                       chromagram_cens_section, onset_strength_section):
+        # Create frame slices
+        start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
+        end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
+
+        # Calculate time axis for subsections
+        times = librosa.frames_to_time(np.arange(start_frame, end_frame), sr=self.sampleRate)
+
+        # Detect onsets in the full audio
+        onset_frames = librosa.onset.onset_detect(onset_envelope=self.onset_strength, sr=self.sampleRate)
+        onset_times = librosa.frames_to_time(onset_frames, sr=self.sampleRate)
+        onset_times_section = onset_times[(onset_times >= start_sec) & (onset_times <= end_sec)]
+
+        # Plot feature subsections
+        fig, ax = plt.subplots(3, 1, figsize=(12, 10), sharex=True, sharey=True)
+
+        # Checking we have all our data
+        if chromagram_stft_section is not None:
+            # Plot Chromagram-STFT
+            librosa.display.specshow(chromagram_stft_section, y_axis='chroma', x_axis='time', ax=ax[0], sr=self.sampleRate,
+                                     cmap='inferno')
+            ax[0].set(title='Chroma-STFT')
+        if chromagram_cqt_section is not None:
+            # Plot Chromagram-CQT
+            librosa.display.specshow(chromagram_cqt_section, y_axis='chroma', x_axis='time', ax=ax[1], sr=self.sampleRate,
+                                     cmap='inferno')
+            ax[1].set(title='Chroma-CQT')
+        if chromagram_cens_section is not None:
+            # Plot Chromagram-CENS
+            librosa.display.specshow(chromagram_cens_section, y_axis='chroma', x_axis='time', ax=ax[2], sr=self.sampleRate,
+                                     cmap='inferno')
+            ax[2].set(title='Chroma-CENS')
+
+        plt.tight_layout()
+        plt.show()
+
+        if onset_times_section is not None:
+            # Plot the waveform and onset envelope
+            plt.figure(figsize=(12, 6))
+
+            # Plot the waveform subsection
+            plt.subplot(2, 1, 1)
+            librosa.display.waveshow(self.audio[int(start_sec * self.sampleRate):int(end_sec * self.sampleRate)],
+                                     sr=self.sampleRate, alpha=0.6)
+            plt.vlines(onset_times_section, ymin=-1, ymax=1, color='r', linestyle='dashed', label='Onsets')
+            plt.title("Waveform with Onset Detection (Subsection)")
+            plt.xlabel("Time (seconds)")
+            plt.ylabel("Amplitude")
+            plt.legend()
+
+        # Plot the onset strength envelope subsection
+        if onset_times_section is not None:
+            plt.subplot(2, 1, 2)
+            plt.plot(times, onset_strength_section, label='Onset Strength Envelope')
+            plt.vlines(onset_times_section, ymin=0, ymax=max(onset_strength_section), color='r', linestyle='dashed',
+                       label='Onsets')
+            plt.title("Onset Strength Envelope (Subsection)")
+            plt.xlabel("Time (seconds)")
+            plt.ylabel("Strength")
+            plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+    def create_and_view_subsection_audio_map(self, start_ms: int, end_ms: int):
         """
-        Visualizes raw audio feature data for the given time range using separate graphs.
+        Visualizes subsections of audio features for the given time range.
+        Matches the provided example but only uses feature subsections.
 
         Parameters:
             start_ms (int): Start time in milliseconds.
             end_ms (int): End time in milliseconds.
         """
+        import librosa.display
+        import numpy as np
+        import matplotlib.pyplot as plt
+
         # Convert milliseconds to seconds
         start_sec = start_ms / 1000
         end_sec = end_ms / 1000
 
-        # Create our frame slices
+        # Create frame slices
         start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
         end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
 
-        # Slice each feature
-        tempogram_section = self.tempogram[start_frame, end_frame]
-        chromagram_stft_section = self.chromagram_stft[start_frame, end_frame]
-        #onset_strength_section = self.onset_strength[start_frame, end_frame]
+        # Slice features
+        tempogram_section = self.tempogram[:, start_frame:end_frame]  # Tempogram subsection
+        chromagram_stft_section = self.chromagram_stft[:, start_frame:end_frame]  # Chromagram-STFT subsection
+        chromagram_cqt_section = librosa.feature.chroma_cqt(y=self.audio, sr=self.sampleRate)[:,
+                                 start_frame:end_frame]  # Chromagram-CQT subsection
+        chromagram_cens_section = librosa.feature.chroma_cens(y=self.audio, sr=self.sampleRate)[:,
+                                  start_frame:end_frame]  # Chromagram-CENS subsection
+        onset_strength_section = self.onset_strength[start_frame:end_frame]  # Onset strength subsection
 
-        # Setting up our graph:
-        fig, ax = plt.subplots(3, 1, figsize=(10, 8), sharex=True, sharey=True)
+        # Calculate time axis for subsections
+        times = librosa.frames_to_time(np.arange(start_frame, end_frame), sr=self.sampleRate)
 
-        # Make Graphs of our Features ->
-        librosa.display.specshow(tempogram_section, y_axis='Tempogram', x_axis='time', ax=ax[0])
-        ax[0].set(title='tempogram_section-STFT')
-
-        librosa.display.specshow(chromagram_stft_section, y_axis='chroma', x_axis='time', ax=ax[1])
-        ax[1].set(title='chromagram_stft_section')
-
-        #librosa.display.specshow(onset_strength_section, y_axis='Strength', x_axis='time', ax=ax[2])
-        #ax[2].set(title='onset_strength_section')
-
-        #TODO we need to fix the plotting here
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # Fitting our Data
-        plt.tight_layout()
-        # Showing our Graph ->
-        plt.show()
-
+        self.view_audio_map(start_sec, end_sec, tempogram_section, chromagram_stft_section,
+                            chromagram_cqt_section, chromagram_cens_section, onset_strength_section)
 
     def create_audio_map(self, start_ms: int, end_ms: int):
         """
@@ -160,6 +224,45 @@ class AudioHandler:
         onset_strength_section = self.onset_strength[start_frame:end_frame]  # (time_frames,)
         chromagram_stft_section = self.chromagram_stft[:, start_frame:end_frame]  # (n_features, time_frames)
 
+        # Detect onsets in the full audio for onset_times
+        onset_frames = librosa.onset.onset_detect(onset_envelope=self.onset_strength, sr=self.sampleRate)
+        onset_times = librosa.frames_to_time(onset_frames, sr=self.sampleRate)
+        onset_times_section = onset_times[(onset_times >= start_sec) & (onset_times <= end_sec)]
+
+        # Create our dictonary before stacking
+        features = {
+            "tempogram": tempogram_section,
+            "tempogram_ratio": tempogram_ratio_section,
+            "onset_strength": onset_strength_section,
+            "chromagram_stft": chromagram_stft_section,
+            "onset_times_section": onset_times_section
+        }
+
+        return features
+
+
+
+    #TODO: Seperate the tensor flow mapping into a seperate function
+    # -> tesor flow mapping should take in the dictonary
+    #    and return a flattened out version for Tensor flow to use
+    #    Create Audio map should just make a little subsection
+    def create_tensorflow_audio_map(self, start_ms: int, end_ms: int):
+
+        # Convert milliseconds to seconds
+        start_sec = start_ms / 1000
+        end_sec = end_ms / 1000
+
+        # Convert seconds to frame indices
+        start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
+        end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
+
+
+        # Slice each feature
+        tempogram_section = self.tempogram[:, start_frame:end_frame]  # (n_features, time_frames)
+        tempogram_ratio_section = self.tempogram_ratio[start_frame:end_frame, 0]  # Extract 1D data
+        onset_strength_section = self.onset_strength[start_frame:end_frame]  # (time_frames,)
+        chromagram_stft_section = self.chromagram_stft[:, start_frame:end_frame]  # (n_features, time_frames)
+
         # Ensure compatible shapes
         min_frames = min(
             tempogram_section.shape[1],
@@ -174,36 +277,20 @@ class AudioHandler:
         onset_strength_section = onset_strength_section[:min_frames]
         chromagram_stft_section = chromagram_stft_section[:, :min_frames]
 
-        # Create our dictonary before stacking
-        featuresPreStack = {
-            "tempogram": tempogram_section,  # (n_features, min_frames)
-            "tempogram_ratio": tempogram_ratio_section,  # (1, min_frames)
-            "onset_strength": onset_strength_section,  # (1, min_frames)
-            "chromagram_stft": chromagram_stft_section,  # (n_features, min_frames)
-        }
-
-
         # Reshape 1D arrays to 2D for stacking
         tempogram_ratio_section = tempogram_ratio_section[np.newaxis, :]  # Shape (1, min_frames)
         onset_strength_section = onset_strength_section[np.newaxis, :]  # Shape (1, min_frames)
 
-        # Create dictionary of features
-        features = {
-            "tempogram": tempogram_section,  # (n_features, min_frames)
-            "tempogram_ratio": tempogram_ratio_section,  # (1, min_frames)
-            "onset_strength": onset_strength_section,  # (1, min_frames)
-            "chromagram_stft": chromagram_stft_section,  # (n_features, min_frames)
-        }
 
         # Concatenate all features along the first axis for TensorFlow
-        stacked_features = np.vstack([
+        tensor_stacked_features = np.vstack([
             tempogram_section,
             tempogram_ratio_section,
             onset_strength_section,
             chromagram_stft_section
         ])  # Shape: (total_features, min_frames)
 
-        return featuresPreStack, stacked_features
+        return tensor_stacked_features
 
     def convertAudioFrame(self, time: float, windowSize: int = 1024):
 

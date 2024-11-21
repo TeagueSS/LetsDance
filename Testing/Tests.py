@@ -287,13 +287,6 @@ def test_spectrogram_and_visualization():
     plt.tight_layout()
     plt.show()
 
-
-
-
-
-
-
-
 def test_audio_mappings():
     logging.info("Testing audio mappings...")
 
@@ -305,59 +298,26 @@ def test_audio_mappings():
     end_sec = 4.0
 
     # Get audio features (dictionary and stacked array)
-    features_dict, stacked_features = audio_handler.create_audio_map(200, 4000)
+    features_dict = audio_handler.create_audio_map(200, 4000)
 
     # Visualize individual features using the dictionary
-    audio_handler.view_audio_map(200, 4000)
+    audio_handler.create_and_view_subsection_audio_map(200, 4000)
 
     # Create time axis for the features
-    num_frames = stacked_features.shape[1]
+    num_frames = audio_handler.get_number_of_frames_in(start_sec, end_sec)
     time_axis = np.linspace(start_sec, end_sec, num_frames)
 
     # Extract individual features from the dictionary
     tempogram = features_dict["tempogram"]  # (n_features, time_frames)
-    tempogram_ratio = features_dict["tempogram_ratio"].flatten()  # Flatten (1, time_frames) -> (time_frames,)
-    onset_strength = features_dict["onset_strength"].flatten()  # Flatten (1, time_frames) -> (time_frames,)
+    tempogram_ratio = features_dict["tempogram_ratio"]  # Flatten (1, time_frames) -> (time_frames,)
+    onset_strength = features_dict["onset_strength"]  # Flatten (1, time_frames) -> (time_frames,)
     chroma = features_dict["chromagram_stft"]  # (n_features, time_frames)
+    onset_times_section = features_dict["onset_times_section"]
 
-    # Plot features separately with intensity maps for high-dimensional data
-    fig, axs = plt.subplots(4, 1, figsize=(15, 12), sharex=True)
+    audio_handler.view_audio_map(.2, 4,tempogram_section= tempogram, chromagram_stft_section= chroma ,onset_strength_section= onset_strength ,
+                               chromagram_cqt_section=None , chromagram_cens_section=None , )
 
-    # Tempogram - Intensity Map
-    im1 = axs[0].imshow(tempogram, aspect='auto', origin='lower',
-                        extent=[start_sec, end_sec, 0, tempogram.shape[0]], cmap='coolwarm')
-    axs[0].set_title("Tempogram")
-    axs[0].set_ylabel("Frequency Bins")
-    plt.colorbar(im1, ax=axs[0], orientation='vertical')
 
-    # Tempogram Ratio - Line Plot
-    axs[1].plot(time_axis, tempogram_ratio, label="Tempogram Ratio", color="orange")
-    axs[1].set_title("Tempogram Ratio")
-    axs[1].set_ylabel("Intensity")
-    axs[1].grid()
-
-    # Onset Strength - Line Plot
-    axs[2].plot(time_axis, onset_strength, label="Onset Strength", color="green")
-    axs[2].set_title("Onset Strength")
-    axs[2].set_ylabel("Intensity")
-    axs[2].grid()
-
-    # Chromagram - Intensity Map
-    im4 = axs[3].imshow(chroma, aspect='auto', origin='lower', extent=[start_sec, end_sec, 0, chroma.shape[0]],
-                        cmap='viridis')
-    axs[3].set_title("Chroma-STFT")
-    axs[3].set_ylabel("Pitch Classes")
-    axs[3].set_xlabel("Time (seconds)")
-    plt.colorbar(im4, ax=axs[3], orientation='vertical')
-
-    # Adjust layout
-    plt.tight_layout()
-    plt.show()
-
-    # Print shapes of features for verification
-    print("Stacked Features Shape:", stacked_features.shape)
-    for key, value in features_dict.items():
-        print(f"{key} shape: {value.shape}")
 
 
 if __name__ == "__main__":

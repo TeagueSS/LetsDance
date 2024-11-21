@@ -29,7 +29,8 @@ class CombineAudioAndVideo:
 
         #map_audio_to_video_frames
 
-    def process_audio_and_video_entry(self, entry, song_path: str, fps: int, frame_holder : SyncedSkeletonDataAndAudio):
+    def process_audio_and_video_entry(self, entry, fps: int, frame_holder : SyncedSkeletonDataAndAudio,
+                                      audio_handler: AudioHandler):
         """
         Process a single mapping entry.
 
@@ -42,7 +43,6 @@ class CombineAudioAndVideo:
             dict or None: Processed data if successful, otherwise None.
         """
         try:
-            logging.info(f'Processing {song_path}')
             # Extract information from the entry
             frame_path = entry["Frame File Path"]
             frame_number = entry["Frame #"]
@@ -60,19 +60,13 @@ class CombineAudioAndVideo:
             logging.info("Landmarks for frame" + str(frame_number) + "Found")
             logging.info("Starting our Audio Conversion -> ")
             print("Processing Audio")
-            # Process audio
 
-            #TODO make this needs to be a shared Object passed by refernce
-            audio_handler = AudioHandler(song_path)
-            # Getting Librosa
-            #TODO this needs to be call for the subsection, and it needs to be able
-            #   To handle the tuple (One compressed one not compressed)
-
+            # Process audio with our audio processor instance
             audio_frame = audio_handler.create_audio_map(audio_start_index, audio_end_index)
 
             # Return processed data
             with lock:
-                frame_holder.add_frame_data(frame_number, audio_start_index, audio_frame, landmarks)
+                frame_holder.add_frame_data(frame_number, audio_start_index, landmarks, audio_frame)
 
 
         except Exception as e:
@@ -102,7 +96,8 @@ class CombineAudioAndVideo:
         """
         # Object to save all frames
         frame_holder = SyncedSkeletonDataAndAudio(song_name)
-
+        # Audio Handler so we don't recompute
+        audio_handler = AudioHandler(song_path)
         # Use ThreadPoolExecutor for concurrent processing
         with ThreadPoolExecutor() as executor:
             # Process all entries concurrently
@@ -113,7 +108,10 @@ class CombineAudioAndVideo:
                 entry = mapping.pop(0)
 
                 #Queing our task
-                future = executor.submit(self.process_audio_and_video_entry, entry, song_path, fps, frame_holder)
+                # Here we are giving it the frame info, as well as the Audio mapper
+                # It should use and the file saver it should use
+                future = executor.submit(self.process_audio_and_video_entry, entry, fps, frame_holder,audio_handler)
+                #Adding this entry to the future so that it is completed:
                 futures.append(future)
 
             # Wait for all futures to complete
