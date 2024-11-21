@@ -1,12 +1,15 @@
 import os
 import logging
 
+from keras.src.utils.module_utils import scipy
+
 from ConvertAudio import AudioHandler
 from ConvertVideo import *
 import pytest
 from visualisation import *
 from encode import SkeletonData, DataSaver , AudioData
 from CombineAudioAndVideo import *
+import matplotlib.pyplot as plt
 
 # Defining our test file paths ->
 CONVERTED_VIDEO_PATH = "Outputs"
@@ -223,6 +226,40 @@ def test_Muti_Threaded_Sync_Conversion():
     logging.info("Printing results")
     print(frames.get_frame(0))
 
+
+def test_spectrogram_and_visualization():
+    logging.info("Testing spectrogram and visualization...")
+    # Getting our song
+    #audio_Handler = AudioHandler("/Users/teaguesangster/Code/Python/CS450/DataSetup/Testing/Test Video and Audio/Test Audio Only Girl Riannah.mp3")
+    # Building our Tempogram
+    # #audio_Handler.build_audio_tempogram_ratio()
+    # # Plotting our entire temporalgram ->
+    y, sr = librosa.load("/Users/teaguesangster/Code/Python/CS450/DataSetup/Testing/Test Video and Audio/Test Audio Only Girl Riannah.mp3")
+    chroma_orig = librosa.feature.chroma_cqt(y=y, sr=sr)
+
+    chromagram_stft = librosa.feature.chroma_stft(y=y, sr=sr)
+    librosa.display.specshow(chromagram_stft, y_axis='chroma', x_axis='time', cmap='coolwarm')
+    plt.title('Chroma-STFT')
+    chromagram_cqt = librosa.feature.chroma_cqt(y=y, sr=sr)
+    librosa.display.specshow(chromagram_cqt, y_axis='chroma', x_axis='time', cmap='coolwarm')
+    plt.title('Chroma-CQT')
+    chromagram_cens = librosa.feature.chroma_cens(y=y, sr=sr)
+    librosa.display.specshow(chromagram_cens, y_axis='chroma', x_axis='time', cmap='coolwarm')
+    plt.title('Chroma-CENS')
+
+    fig, ax = plt.subplots(3, 1, figsize=(10, 8), sharex=True, sharey=True)
+
+    librosa.display.specshow(chromagram_stft, y_axis='chroma', x_axis='time', ax=ax[0])
+    ax[0].set(title='Chroma-STFT')
+
+    #librosa.display.specshow(chromagram_cqt, y_axis='chroma', x_axis='time', ax=ax[1])
+    #ax[1].set(title='Chroma-CQT')
+
+    #librosa.display.specshow(chromagram_cens, y_axis='chroma', x_axis='time', ax=ax[2])
+    #ax[2].set(title='Chroma-CENS')
+
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":

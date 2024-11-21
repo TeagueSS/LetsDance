@@ -2,9 +2,10 @@ import logging
 
 import librosa
 import numpy as np
+import librosa.feature
+
 
 class AudioHandler:
-
     """/
         Meant to  process audio files using the librosa library. ->
 
@@ -19,26 +20,42 @@ class AudioHandler:
     def __init__(self, audio_path: str):
         # Storing our Audio path for later
         self.audio_path = audio_path
+
         # Saving our y and SR
-        self.audio, self.sampleRate = self.loadFile(self.audio_path)
+        self.audio, self.sampleRate = librosa.load(self.audio_path)  # Use the actual file path
 
-    def loadFile(self, audio_path):
-        # Load the audio file
-        #audio, sampleRate
-        audio, sampleRate = librosa.load(audio_path, sr=None)
+        self.loadFile()
 
+    def loadFile(self):
         # Get tempo and beat frames
-        tempo, beat_frames = librosa.beat.beat_track(y=audio, sr=sampleRate)
-        beat_times = librosa.frames_to_time(beat_frames, sr=sampleRate)
+        tempo, beat_frames = librosa.beat.beat_track(y=self.audio, sr=self.sampleRate)
+        beat_times = librosa.frames_to_time(beat_frames, sr=self.sampleRate)
         # Sharing the info we grabbed
         print("Tempo:", tempo)
         print("Beat times:", beat_times)
-        return audio, sampleRate
+        # Time to get all of our other Data!
 
+        # Building our TempoGram
+        self.tempogram = librosa.feature.tempogram(y=self.audio, sr=self.sampleRate)
+        # Getting our Tempogram ratio ->
+        self.tempogram_ratio = librosa.feature.tempogram_ratio(tg=self.tempogram, sr=self.sampleRate)
+        #
+        librosa.onset.onset_detect(y=self.audio, sr=self.sampleRate, units='time')
+        self.onset_strength = librosa.onset.onset_strength(y=self.audio, sr=self.sampleRate)
+        # self.times = librosa.times_like(self.onset_strength, sr=self.sampleRate)
+        # self.onset_frames = librosa.onset.onset_detect(onset_envelope=self.onset_strength, sr=self.sampleRate)
+        # Getting the cleaned chromaGraph Data
+        self.chromagram_stft = librosa.feature.chroma_stft(y=self.audio, sr=self.sampleRate)
+
+
+    #def build superflexOnset(self):
+
+    #def build cleanedAudioChromagram(self):
+    #
 
     ###TODO:
     #   get the audio data at a point in the audio file, from
-    def getAudioDataAt(self , time:float):
+    def getAudioDataAt(self, time: float):
         # Convert time to frame index
         frame_index = librosa.time_to_frames(time, sr=self.sampleRate)
 
@@ -47,7 +64,6 @@ class AudioHandler:
         # Printing that we got the data ->
         print(f"Audio data at {time} seconds:", audio_segment)
         return audio_segment
-
 
     ##TODO
     #   Write a method to take in an array of times
@@ -61,14 +77,10 @@ class AudioHandler:
         # Creating a list to add audio segments back to ->
         audio_segments = []
 
-
-
-
-
         # Remove this return
         return 0
 
-    def create_audio_map(self,  start_ms: int, end_ms: int):
+    def create_audio_map(self, start_ms: int, end_ms: int):
         """
         Create an audio map (e.g., spectrogram) for a specific segment of an audio file.
 
@@ -109,16 +121,8 @@ class AudioHandler:
 
         return spectrogram
 
+    def convertAudioFrame(self, time: float, windowSize: int = 1024):
 
-
-
-
-
-
-
-
-    def convertAudioFrame(self, time: float , windowSize: int = 1024):
-        
         #Load the audio file
         #audio, sampleRate = librosa.load(songPath, sr=None)
 
@@ -126,8 +130,8 @@ class AudioHandler:
         sampleIndex = int(time * self.sampleRate)
 
         #Extract the audio around desired time
-        startIndex = max(0, sampleIndex- windowSize //2)
-        endIndex = min(len(self.audio), sampleIndex + windowSize //2)
+        startIndex = max(0, sampleIndex - windowSize // 2)
+        endIndex = min(len(self.audio), sampleIndex + windowSize // 2)
         audioSegment = self.audio[startIndex:endIndex]
 
         # Ensure the audio segment is not empty or too short
@@ -136,15 +140,9 @@ class AudioHandler:
         if len(audioSegment) < windowSize:
             audioSegment = np.pad(audioSegment, (0, windowSize - len(audioSegment)), mode="constant")
 
-
         #Convert the audio to a frequency
         hop_length = windowSize // 4  # Explicitly set hop length
         spectrumData = np.abs(librosa.stft(audioSegment, n_fft=windowSize, hop_length=hop_length))
 
         #Return the data as an array
         return spectrumData
-    
-    
-        
-
-
