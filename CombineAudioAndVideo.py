@@ -9,7 +9,7 @@ import librosa
 import pandas as pd
 import numpy as np
 
-from ConvertAudio import AudioHandler
+from AudioHandler import AudioHandler
 from ConvertVideo import convertFrameIntoPose
 from encode import SyncedSkeletonDataAndAudio
 # Initialize a lock for writing to the HDF5 file
@@ -52,16 +52,22 @@ class CombineAudioAndVideo:
             logging.info("Processing landmarks for frame" + str(frame_number))
             # Process landmarks
             landmarks = convertFrameIntoPose(frame_path, True)
+            # See if we actually got landmarks
             if landmarks is None:
-                return  # Skip frames with no landmarks
+                # If we have no landmarks we failed and need to skip
+                return
 
+            logging.info("Landmarks for frame" + str(frame_number) + "Found")
             logging.info("Starting our Audio Conversion -> ")
             print("Processing Audio")
             # Process audio
 
-
+            #TODO make this needs to be a shared Object passed by refernce
             audio_handler = AudioHandler(song_path)
             # Getting Librosa
+            #TODO this needs to be call for the subsection, and it needs to be able
+            #   To handle the tuple (One compressed one not compressed)
+
             audio_frame = audio_handler.create_audio_map(audio_start_index, audio_end_index)
 
             # Return processed data

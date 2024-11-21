@@ -3,7 +3,7 @@ import logging
 
 from keras.src.utils.module_utils import scipy
 
-from ConvertAudio import AudioHandler
+from AudioHandler import AudioHandler
 from ConvertVideo import *
 import pytest
 from visualisation import *
@@ -91,8 +91,6 @@ def test_convert_frames_into_hdf5():
     convertFramesIntoHDF5(OUTPUT_FRAMES_PATH, H5_FILEPATH)
     logging.info("Frames conversion to HDF5 completed.")
 
-
-
 def test_view_skeletal_data():
     logging.info(f"Testing saving skeletal data...")
     logging.info(f"Getting skeletal data from: '{FRAME_PATH}' ")
@@ -115,7 +113,6 @@ def test_save_skeletal_data():
     ###TODO we need to fix the output to take in the folder path as well
     #   And then join it later on
     data_saver.save_to_csv("TestingOutputs/Only_Girl_Rihanna_landmarks.csv")
-
 
 def test_split_audio_frames():
     # Printing out what we want to test
@@ -158,8 +155,6 @@ def test_audio_data_storage():
     else:
         logging.error("Failed to retrieve the first frame!")
 
-
-
 def test_video_and_audio_linking():
     logging.info("Testing video linking...")
 
@@ -191,7 +186,6 @@ def test_video_and_audio_linking():
         print(f"  Audio Start Index: {entry['Audio Start Index']}")
         print(f"  Audio End Index: {entry['Audio End Index']}")
         print()  # Add a blank line for readability
-
 
 def test_Muti_Threaded_Sync_Conversion():
     logging.info("Testing video linking...")
@@ -226,7 +220,6 @@ def test_Muti_Threaded_Sync_Conversion():
     logging.info("Printing results")
     print(frames.get_frame(0))
 
-
 def test_spectrogram_and_visualization():
     logging.info("Testing spectrogram and visualization...")
     # Getting our song
@@ -258,6 +251,68 @@ def test_spectrogram_and_visualization():
     #librosa.display.specshow(chromagram_cens, y_axis='chroma', x_axis='time', ax=ax[2])
     #ax[2].set(title='Chroma-CENS')
 
+    plt.tight_layout()
+    plt.show()
+
+def test_audio_mappings():
+
+    logging.info("Testing audio mappings...")
+    # Creating our Audio Handler
+    audio_handler = AudioHandler(AUDIO_PATH)
+    # Defining our timings ->
+    start_sec = 0.2
+    end_sec = 4.0
+
+    # Getting an Audio map for 0.2 seconds to 4 seconds
+    features = audio_handler.create_audio_map(200, 4000)
+    audio_handler.view_audio_map(200, 4000)
+    # Create time axis for the features
+    num_frames = features.shape[1]
+    time_axis = np.linspace(start_sec, end_sec, num_frames)
+
+    # Process features for plotting
+    # Assuming Tempogram is the first 384 rows
+    tempogram = features[:384, :]
+    # Assuming Tempogram Ratio is 1D
+    tempogram_ratio = features[384, :]
+    # Assuming Onset Strength is 1D
+    onset_strength = features[385, :]
+    # Assuming Chromagram is the last 12 rows
+    chroma = features[386:, :]
+
+    # Plot features separately with intensity maps for high-dimensional data
+    fig, axs = plt.subplots(4, 1, figsize=(15, 12), sharex=True)
+
+    # Tempogram - Intensity Map
+    im1 = axs[0].imshow(tempogram, aspect='auto', origin='lower',
+                        extent=[start_sec, end_sec, 0, tempogram.shape[0]], cmap='coolwarm')
+    axs[0].set_title("Tempogram")
+    axs[0].set_ylabel("Frequency Bins")
+    plt.colorbar(im1, ax=axs[0], orientation='vertical')
+
+    # Tempogram Ratio - Line Plot
+    axs[1].plot(time_axis, tempogram_ratio, label="Tempogram Ratio", color="orange")
+    axs[1].set_title("Tempogram Ratio")
+    axs[1].set_ylabel("Intensity")
+    axs[1].grid()
+
+    # Onset Strength - Line Plot
+    axs[2].plot(time_axis, onset_strength, label="Onset Strength", color="green")
+    axs[2].set_title("Onset Strength")
+    axs[2].set_ylabel("Intensity")
+    axs[2].grid()
+
+    # Chromagram - Intensity Map
+    im4 = axs[3].imshow(chroma, aspect='auto', origin='lower', extent=[start_sec, end_sec, 0, chroma.shape[0]],
+                        cmap='viridis')
+    axs[3].set_title("Chroma-STFT")
+    axs[3].set_ylabel("Pitch Classes")
+    axs[3].set_xlabel("Time (seconds)")
+    plt.colorbar(im4, ax=axs[3], orientation='vertical')
+
+
+
+    # Adjust layout
     plt.tight_layout()
     plt.show()
 

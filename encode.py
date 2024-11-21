@@ -40,6 +40,7 @@ class SyncedSkeletonDataAndAudio:
         # Add audio frame data
         self.audio_data.add_frame_data(frame_number, frame_time, audio_frame)
 
+
         # Prepare skeleton frame data
         skeleton_row = {"frame_number": frame_number, "frame_time": frame_time}
         for part, coords in landmarks.items():
