@@ -245,40 +245,80 @@ def test_spectrogram_and_visualization():
     librosa.display.specshow(chromagram_stft, y_axis='chroma', x_axis='time', ax=ax[0])
     ax[0].set(title='Chroma-STFT')
 
-    #librosa.display.specshow(chromagram_cqt, y_axis='chroma', x_axis='time', ax=ax[1])
-    #ax[1].set(title='Chroma-CQT')
+    librosa.display.specshow(chromagram_cqt, y_axis='chroma', x_axis='time', ax=ax[1])
+    ax[1].set(title='Chroma-CQT')
 
-    #librosa.display.specshow(chromagram_cens, y_axis='chroma', x_axis='time', ax=ax[2])
-    #ax[2].set(title='Chroma-CENS')
+    librosa.display.specshow(chromagram_cens, y_axis='chroma', x_axis='time', ax=ax[2])
+    ax[2].set(title='Chroma-CENS')
 
     plt.tight_layout()
     plt.show()
 
-def test_audio_mappings():
+    # Calculate the onset envelope and detect onsets
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.mean)
+    onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
 
+    # Convert onset frames to time
+    onset_times = librosa.frames_to_time(onset_frames, sr=sr)
+
+    # Plot the waveform and onset envelope
+    plt.figure(figsize=(12, 6))
+
+    # Plot the waveform
+    plt.subplot(2, 1, 1)
+    librosa.display.waveshow(y, sr=sr, alpha=0.6)
+    plt.vlines(onset_times, ymin=-1, ymax=1, color='r', linestyle='dashed', label='Onsets')
+    plt.title("Waveform with Onset Detection")
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("Amplitude")
+    plt.legend()
+
+    # Plot the onset strength envelope
+    plt.subplot(2, 1, 2)
+    times = librosa.times_like(onset_env, sr=sr)
+    plt.plot(times, onset_env, label='Onset Strength Envelope')
+    plt.vlines(onset_times, ymin=0, ymax=max(onset_env), color='r', linestyle='dashed', label='Onsets')
+    plt.title("Onset Strength Envelope")
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("Strength")
+    plt.legend()
+
+    # Adjust layout and display
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+
+
+def test_audio_mappings():
     logging.info("Testing audio mappings...")
-    # Creating our Audio Handler
+
+    # Create the Audio Handler
     audio_handler = AudioHandler(AUDIO_PATH)
-    # Defining our timings ->
+
+    # Define the time range
     start_sec = 0.2
     end_sec = 4.0
 
-    # Getting an Audio map for 0.2 seconds to 4 seconds
-    features = audio_handler.create_audio_map(200, 4000)
+    # Get audio features (dictionary and stacked array)
+    features_dict, stacked_features = audio_handler.create_audio_map(200, 4000)
+
+    # Visualize individual features using the dictionary
     audio_handler.view_audio_map(200, 4000)
+
     # Create time axis for the features
-    num_frames = features.shape[1]
+    num_frames = stacked_features.shape[1]
     time_axis = np.linspace(start_sec, end_sec, num_frames)
 
-    # Process features for plotting
-    # Assuming Tempogram is the first 384 rows
-    tempogram = features[:384, :]
-    # Assuming Tempogram Ratio is 1D
-    tempogram_ratio = features[384, :]
-    # Assuming Onset Strength is 1D
-    onset_strength = features[385, :]
-    # Assuming Chromagram is the last 12 rows
-    chroma = features[386:, :]
+    # Extract individual features from the dictionary
+    tempogram = features_dict["tempogram"]  # (n_features, time_frames)
+    tempogram_ratio = features_dict["tempogram_ratio"].flatten()  # Flatten (1, time_frames) -> (time_frames,)
+    onset_strength = features_dict["onset_strength"].flatten()  # Flatten (1, time_frames) -> (time_frames,)
+    chroma = features_dict["chromagram_stft"]  # (n_features, time_frames)
 
     # Plot features separately with intensity maps for high-dimensional data
     fig, axs = plt.subplots(4, 1, figsize=(15, 12), sharex=True)
@@ -310,11 +350,14 @@ def test_audio_mappings():
     axs[3].set_xlabel("Time (seconds)")
     plt.colorbar(im4, ax=axs[3], orientation='vertical')
 
-
-
     # Adjust layout
     plt.tight_layout()
     plt.show()
+
+    # Print shapes of features for verification
+    print("Stacked Features Shape:", stacked_features.shape)
+    for key, value in features_dict.items():
+        print(f"{key} shape: {value.shape}")
 
 
 if __name__ == "__main__":
