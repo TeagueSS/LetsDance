@@ -79,9 +79,6 @@ class SyncedSkeletonDataAndAudio:
 
 
 
-
-
-
 class SkeletonData:
 
     def __init__(self):
@@ -100,6 +97,9 @@ class SkeletonData:
 
         # Initialize an empty DataFrame
         self.data = pd.DataFrame(columns=self.columns)
+
+    def get_frame(self, frame_number: int):
+        return self.data[self.data["Frame #"] == frame_number]
 
     def get_coordinates_for_part(self, part_name):
         # Getting our body parts from our name
@@ -140,6 +140,9 @@ class SkeletonData:
         self.data = self.data._append(frame_data, ignore_index=True)
 
 
+
+
+
 class AudioData:
 
     def __init__(self, song_name: str):
@@ -151,7 +154,6 @@ class AudioData:
         """
         self.song_name = song_name
         # Create an empty DataFrame to store frames and their timings
-        #self.frames = pd.DataFrame(columns=["frame_number", "frame_time", "data_frame"])
         self.frames = []  # Each frame will be a dictionary
 
     def add_frame_data(self, frame_number: int, frame_time: float, features: dict):

@@ -246,52 +246,58 @@ class AudioHandler:
     # -> tesor flow mapping should take in the dictonary
     #    and return a flattened out version for Tensor flow to use
     #    Create Audio map should just make a little subsection
-    def create_tensorflow_audio_map(self, start_ms: int, end_ms: int):
+    def create_audio_map_for_tensorflow(self, start_ms: int, end_ms: int, max_frames: int = 128):
+        """
+        Prepares audio feature subsections for TensorFlow, ensuring fixed sizes and normalized values.
 
-        # Convert milliseconds to seconds
-        start_sec = start_ms / 1000
-        end_sec = end_ms / 1000
+        Parameters:
+            start_ms (int): Start time in milliseconds.
+            end_ms (int): End time in milliseconds.
+            max_frames (int): Maximum number of frames for padding or truncation.
 
-        # Convert seconds to frame indices
-        start_frame = librosa.time_to_frames(start_sec, sr=self.sampleRate)
-        end_frame = librosa.time_to_frames(end_sec, sr=self.sampleRate)
+        Returns:
+            tuple: A dictionary of processed audio features and a concatenated numpy array for TensorFlow.
+        """
 
+        # Step 1: Extract features using existing logic
+        features = self.create_audio_map(start_ms, end_ms)
 
-        # Slice each feature
-        tempogram_section = self.tempogram[:, start_frame:end_frame]  # (n_features, time_frames)
-        tempogram_ratio_section = self.tempogram_ratio[start_frame:end_frame, 0]  # Extract 1D data
-        onset_strength_section = self.onset_strength[start_frame:end_frame]  # (time_frames,)
-        chromagram_stft_section = self.chromagram_stft[:, start_frame:end_frame]  # (n_features, time_frames)
+        # Step 2: Normalize features
+        def normalize(feature):
+            if feature.ndim > 1:  # For 2D features like tempogram or chromagram
+                return (feature - np.mean(feature, axis=1, keepdims=True)) / (
+                            np.std(feature, axis=1, keepdims=True) + 1e-8)
+            else:  # For 1D features like onset strength
+                return (feature - np.mean(feature)) / (np.std(feature) + 1e-8)
 
-        # Ensure compatible shapes
-        min_frames = min(
-            tempogram_section.shape[1],
-            tempogram_ratio_section.shape[0],
-            onset_strength_section.shape[0],
-            chromagram_stft_section.shape[1],
+        for key in ["tempogram", "chromagram_stft", "onset_strength"]:
+            features[key] = normalize(features[key])
+
+        # Step 3: Pad or truncate features to fixed size
+        def pad_or_truncate(feature, max_frames):
+            if feature.ndim == 1:  # 1D array
+                if len(feature) > max_frames:
+                    return feature[:max_frames]
+                return np.pad(feature, (0, max_frames - len(feature)))
+            else:  # 2D array
+                if feature.shape[1] > max_frames:
+                    return feature[:, :max_frames]
+                return np.pad(feature, ((0, 0), (0, max_frames - feature.shape[1])))
+
+        for key in features:
+            if key != "onset_times_section":  # Ignore onset times, as they are not fixed-size tensors
+                features[key] = pad_or_truncate(features[key], max_frames)
+
+        # Step 4: Combine features into a single tensor for TensorFlow
+        combined_tensor = np.concatenate(
+            [
+                features["tempogram"].flatten(),
+                features["chromagram_stft"].flatten(),
+                features["onset_strength"].flatten(),
+            ]
         )
 
-        # Trim all sections to the minimum frame length
-        tempogram_section = tempogram_section[:, :min_frames]
-        tempogram_ratio_section = tempogram_ratio_section[:min_frames]
-        onset_strength_section = onset_strength_section[:min_frames]
-        chromagram_stft_section = chromagram_stft_section[:, :min_frames]
-
-        # Reshape 1D arrays to 2D for stacking
-        tempogram_ratio_section = tempogram_ratio_section[np.newaxis, :]  # Shape (1, min_frames)
-        onset_strength_section = onset_strength_section[np.newaxis, :]  # Shape (1, min_frames)
-
-
-        # Concatenate all features along the first axis for TensorFlow
-        tensor_stacked_features = np.vstack([
-            tempogram_section,
-            tempogram_ratio_section,
-            onset_strength_section,
-            chromagram_stft_section
-        ])  # Shape: (total_features, min_frames)
-
-        return tensor_stacked_features
-
+        return features, combined_tensor
     def convertAudioFrame(self, time: float, windowSize: int = 1024):
 
         #Load the audio file

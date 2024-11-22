@@ -6,11 +6,13 @@ from keras.src.utils.module_utils import scipy
 from AudioHandler import AudioHandler
 from ConvertVideo import *
 import pytest
+
+from Training.TensorFlowProcessing import TensorFlowDataPrep
 from visualisation import *
 from encode import SkeletonData, DataSaver , AudioData
 from CombineAudioAndVideo import *
 import matplotlib.pyplot as plt
-
+from Training import TensorFlowProcessing
 # Defining our test file paths ->
 CONVERTED_VIDEO_PATH = "Outputs"
 VIDEO_NAME ="Only_Girl_Riannah"
@@ -316,6 +318,40 @@ def test_audio_mappings():
 
     audio_handler.view_audio_map(.2, 4,tempogram_section= tempogram, chromagram_stft_section= chroma ,onset_strength_section= onset_strength ,
                                chromagram_cqt_section=None , chromagram_cens_section=None , )
+
+
+def test_tensor_encoding():
+
+    logging.info("Testing Audio Encoding:")
+    # Create Audio Handler
+    audio_handler = AudioHandler(AUDIO_PATH)
+    #Get our Audio
+    features_dict = audio_handler.create_audio_map(200, 4000)
+    # Create our Audio Saver
+    audio_saver = AudioData(" Only Girl Rihanna")
+    # Save our Audio Frame
+    audio_saver.add_frame_data(frame_number= 1 ,frame_time= 200 ,features= features_dict)
+    features_dict, audio_tensor = audio_handler.create_audio_map_for_tensorflow(200, 4000)
+
+
+    logging.info("Audio Processed and saved :)")
+    logging.info("Testing Video Encoding:")
+
+    # Getting our Landmarks
+    skeltal_landmarks = convertFrameIntoPose(FRAME_PATH , False)
+    # Creating our landmark saver
+    skeleton_saver= SkeletonData()
+    # saving our landmarks:
+    skeleton_saver.add_frame_data(frame_number= 1, frame_time= 200,landmarks= skeltal_landmarks)
+    logging.info("Frame Processed and saved :)")
+    logging.info("Testing Tensor Encoding:")
+    tensor_preper = TensorFlowDataPrep()
+
+    # Writing our audio and skeletal data:
+    tensor_preper.combine_data(skeleton_features= skeleton_saver.getFrame(1) , audio_features = audio_tensor)
+    
+
+
 
 
 
