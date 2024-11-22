@@ -349,7 +349,27 @@ def test_tensor_encoding():
 
     # Writing our audio and skeletal data:
     tensor_preper.combine_data(skeleton_features= skeleton_saver.getFrame(1) , audio_features = audio_tensor)
+    #TODO, 1.make the prep function for audio and video handler,
+    # 2.make the multithreaded conversion just make an array of these entries
+    # 3.pass these entries to the RNN prepper
+    # 4. encode the data the RNN prepper makes ->
+
+    '''
+    1. Save Preprocessed Data to TFRecord
+
+    Save synchronized frames as serialized tf.train.Example instances in a TFRecord file.
+    Each example includes:
+    Input sequence (X): Combined audio and skeletal data.
+    Target sequence (y): The corresponding skeletal frame.
+    2. Load Data with tf.data.Dataset
     
+    Use tf.data.TFRecordDataset to load the TFRecord file.
+    Parse each serialized example into tensors.
+    Apply preprocessing (e.g., normalization, shuffling).
+    Batch and feed the data to your RNN.
+    '''
+    # Once they're both in order, pass them to the RNN prepper, and then save the
+    # outputs to an HD5 file
 
 
 
