@@ -7,6 +7,7 @@ from AudioHandler import AudioHandler
 from ConvertVideo import *
 import pytest
 
+from Training.AudioSlicing import AudioFrameProcessor
 from Training.TensorFlowProcessing import TensorFlowDataPrep
 from visualisation import *
 from encode import SkeletonData, DataSaver , AudioData
@@ -206,21 +207,24 @@ def test_Muti_Threaded_Sync_Conversion():
     cap.release()
     # Getting Our Video Path ->
     logging.info(f"Testing conversion of video '{VIDEO_NAME}' into frames...")
+    #TODO here the error is that it's providing a frame time not the number
     csv_Path = convertVideoIntoSyncedFrames(VIDEO_TO_CONVERT, OUTPUT_PATH, VIDEO_NAME)
     logging.info("Video conversion completed.")
     # Now that we have our Video information lets get our audio information
     ActionHandler = CombineAudioAndVideo("No Youtube link needed")
-    sycned_frames = ActionHandler.map_audio_to_video_frames(csv_Path, AUDIO_PATH, fps)
+    sycned_frames = ActionHandler.map_audio_to_video_frames(csv_Path, AUDIO_PATH, 30)
 
     # Now that we have our frames trying to convert them
     logging.info("Video Frames found, lets convert!")
     print("Initating Frame Processing ")
 
     frames = ActionHandler.process_audio_and_video_frames_Multi_Threaded(sycned_frames, "Only Girl", AUDIO_PATH, fps)
+    #frames.
+
     # Printing our frames
     logging.info("Frames Processing completed.")
     logging.info("Printing results")
-    print(frames.get_frame(0))
+    #print(frames.get_frame(0))
 
 def test_spectrogram_and_visualization():
     logging.info("Testing spectrogram and visualization...")
@@ -288,6 +292,9 @@ def test_spectrogram_and_visualization():
     # Adjust layout and display
     plt.tight_layout()
     plt.show()
+    print("Here's our Onset envelop")
+    print(onset_env)
+
 
 def test_audio_mappings():
     logging.info("Testing audio mappings...")
@@ -321,20 +328,20 @@ def test_audio_mappings():
 
 
 def test_tensor_encoding():
+    #
+    # logging.info("Testing Audio Encoding:")
+    # # Create Audio Handler
+    # audio_handler = AudioHandler(AUDIO_PATH)
+    # #Get our Audio
+    # features_dict = audio_handler.create_audio_map(200, 4000)
+    # # Create our Audio Saver
+    # audio_saver = AudioData(" Only Girl Rihanna")
+    # # Save our Audio Frame
+    # audio_saver.add_frame_data(frame_number= 1 ,frame_time= 200 ,features= features_dict)
+    # features_dict, audio_tensor = audio_handler.create_audio_map_for_tensorflow(200, 4000)
 
-    logging.info("Testing Audio Encoding:")
-    # Create Audio Handler
-    audio_handler = AudioHandler(AUDIO_PATH)
-    #Get our Audio
-    features_dict = audio_handler.create_audio_map(200, 4000)
-    # Create our Audio Saver
-    audio_saver = AudioData(" Only Girl Rihanna")
-    # Save our Audio Frame
-    audio_saver.add_frame_data(frame_number= 1 ,frame_time= 200 ,features= features_dict)
-    features_dict, audio_tensor = audio_handler.create_audio_map_for_tensorflow(200, 4000)
 
-
-    logging.info("Audio Processed and saved :)")
+    #logging.info("Audio Processed and saved :)")
     logging.info("Testing Video Encoding:")
 
     # Getting our Landmarks
@@ -345,11 +352,50 @@ def test_tensor_encoding():
     skeleton_saver.add_frame_data(frame_number= 1, frame_time= 200,landmarks= skeltal_landmarks)
     logging.info("Frame Processed and saved :)")
     logging.info("Testing Tensor Encoding:")
-    tensor_preper = TensorFlowDataPrep()
+    # Here the data comes in a form we can't yet use, it comes as
+    # a list of points on the body, which we are getting from
+    # The skeletal saver class
+    '''
+ 
+    '''
 
+    # Seeing if our frame saving can actually hold them by body part
+    skelatal_saver = SkeletonData()
+    skelatal_saver.add_frame_data(frame_number= 1, frame_time= 200,landmarks= skeltal_landmarks)
+
+    tensor_preper = TensorFlowDataPrep()
+    # Now that we have our skeletal data attempting to save it
+    # in a numpy array ->
+    proccessed_landmarks = tensor_preper.process_skeltal_features(skeltal_landmarks)
+    # Printing our out our processed landmarks so we can see what they look
+    # Like
+    print(proccessed_landmarks)
+    # Attempting to save our landmarks
+
+    # Now that our landmarks are encoded lets test our Audio encoding
+
+    # Making our audio handler
+    audio_handler = AudioHandler(AUDIO_PATH)
+    # getting our information
+
+    # Initialize processor
+    #processor = AudioFrameProcessor(30, audio_handler.tempo, audio_handler.beat_times, audio_handler.dominant_rhythm, audio_handler.onset_env)
+    processor = AudioFrameProcessor(fps=30,beat_times=audio_handler.beat_times,onset_env=audio_handler.onset_env)
+
+    # Process and normalize audio features
+    processor.process_audio_features(audio_handler.duration)
+
+    # Retrieve a specific frame's features
+    frame_index = 10
+    frame_features = processor.get_frame_features(frame_index).numpy()
+
+    # Retrieve all frame features
+    all_features = processor.get_all_features().numpy()
+    print(all_features)
     # Writing our audio and skeletal data:
-    tensor_preper.combine_data(skeleton_features= skeleton_saver.getFrame(1) , audio_features = audio_tensor)
+    #tensor_preper.combine_data(skeleton_features= skeleton_saver.getFrame(1) , audio_features = audio_tensor)
     #TODO, 1.make the prep function for audio and video handler,
+    #1. The audio encoding needs to use less data points,
     # 2.make the multithreaded conversion just make an array of these entries
     # 3.pass these entries to the RNN prepper
     # 4. encode the data the RNN prepper makes ->
@@ -370,6 +416,52 @@ def test_tensor_encoding():
     '''
     # Once they're both in order, pass them to the RNN prepper, and then save the
     # outputs to an HD5 file
+
+
+
+def test_tensor_encoding_MultiThreaded():
+    logging.info("Testing video linking...")
+
+    # Try to open our video
+    cap = cv2.VideoCapture(VIDEO_TO_CONVERT)
+    # Check if the video was opened successfully
+    if not cap.isOpened():
+        logging.error("Unable to open video " + VIDEO_TO_CONVERT)
+        print("Error: Could not open video.")
+        return
+
+    # Getting our FPS ->
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Releasing our cap
+    cap.release()
+    # Getting Our Video Path ->
+    logging.info(f"Testing conversion of video '{VIDEO_NAME}' into frames...")
+    csv_Path = convertVideoIntoSyncedFrames(VIDEO_TO_CONVERT, OUTPUT_PATH, VIDEO_NAME)
+    logging.info("Video conversion completed.")
+    # Now that we have our Video information lets get our audio information
+    ActionHandler = CombineAudioAndVideo("No Youtube link needed")
+    #map_csv_of_frames
+    sycned_frames = ActionHandler.map_csv_of_frames(csv_Path)
+
+    # Now that we have our frames trying to convert them
+    logging.info("Video Frames found, lets convert!")
+    print("Initating Frame Processing ")
+
+    frames = ActionHandler.process_audio_and_video_frames_Multi_Threaded(sycned_frames, "Only Girl", AUDIO_PATH, 60)
+    # Printing our frames
+    #print(len(frames.bodyParts))
+    #print(frames.)
+    logging.info("Frames Processing completed.")
+    logging.info("Printing results")
+    print("****************************************************************************")
+    print("****************************************************************************")
+    print("****************************************************************************")
+
+    print("We Processed: ")
+    print(frames.get_length())
+
+    #print(str(len(frames.skeleton_data)))
+    #print(frames.get_frame(0))
 
 
 

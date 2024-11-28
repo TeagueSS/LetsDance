@@ -131,6 +131,7 @@ class SkeletonData:
             # by their dictonary name
             counter = 0
             # Example: assuming `get_coordinates_for_part()` fetches the (x, y, z) coordinates for each body part
+            # Here this is happening bc it's a 2d array
             frame_data[f"{part}_x"] = landmarks[counter]['x']
             frame_data[f"{part}_y"] = landmarks[counter]['y']
             frame_data[f"{part}_z"] = landmarks[counter]['z']

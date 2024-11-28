@@ -11,6 +11,8 @@ import numpy as np
 
 from AudioHandler import AudioHandler
 from ConvertVideo import convertFrameIntoPose
+from Training.AudioSlicing import AudioFrameProcessor
+from Training.TensorFlowProcessing import TensorFlowDataPrep
 from encode import SyncedSkeletonDataAndAudio
 # Initialize a lock for writing to the HDF5 file
 lock = threading.Lock()
@@ -29,11 +31,11 @@ class CombineAudioAndVideo:
 
         #map_audio_to_video_frames
 
-    def process_audio_and_video_entry(self, entry, fps: int, frame_holder : SyncedSkeletonDataAndAudio,
-                                      audio_handler: AudioHandler):
+    #entry, file_handler,audio_slicer
+    def process_audio_and_video_entry(self, entry,  file_handler : TensorFlowDataPrep,
+                                      audio_slicer: AudioFrameProcessor):
         """
         Process a single mapping entry.
-
         Args:
             entry (dict): A single mapping entry containing frame data.
             song_path (str): The path to the audio file.
@@ -46,8 +48,9 @@ class CombineAudioAndVideo:
             # Extract information from the entry
             frame_path = entry["Frame File Path"]
             frame_number = entry["Frame #"]
-            audio_start_index = entry["Audio Start Index"]
-            audio_end_index = entry["Audio End Index"]
+
+            # Seeing if we can process our Skeletal Frames,
+            # This will determine if our information can be saved ->
 
             logging.info("Processing landmarks for frame" + str(frame_number))
             # Process landmarks
@@ -58,17 +61,24 @@ class CombineAudioAndVideo:
                 return
 
             logging.info("Landmarks for frame" + str(frame_number) + "Found")
+            # If we have our landmarks we need to save them in tensor format:
+            with lock:
+                # Here procesing our skeleton frames
+                processed_skeleton = file_handler.process_skeltal_features(landmarks)
+
             logging.info("Starting our Audio Conversion -> ")
             print("Processing Audio")
 
-            # Process audio with our audio processor instance
-            audio_frame = audio_handler.create_audio_map(audio_start_index, audio_end_index)
-
-            # Return processed data
             with lock:
-                frame_holder.add_frame_data(frame_number, audio_start_index, landmarks, audio_frame)
+                # Process audio with our audio processor instance
+                audio_frame = audio_slicer.get_frame_features(frame_number)
 
+            with lock:
+                # Saving our processed information ->
+                #audio, skelton,frame_number
+                file_handler.add_frame(audio = audio_frame, skelton= processed_skeleton , frame_number= frame_number)
 
+        # Exception logging to catch any errors ->
         except Exception as e:
             # Print the exception type, message, and the full traceback
             print(f"Error processing entry {entry}:")
@@ -94,10 +104,31 @@ class CombineAudioAndVideo:
         Returns:
             SyncedSkeletonDataAndAudio: An object containing synchronized skeleton and audio data.
         """
-        # Object to save all frames
-        frame_holder = SyncedSkeletonDataAndAudio(song_name)
-        # Audio Handler so we don't recompute
+        # Here we are actually going
+
+        #TODO get the audio and data handler to hold everything ->
+
+
+        # Object to save our audio and skeletal and Audio data:
+        file_handler = TensorFlowDataPrep()
+        # Audio Handler to prep our audio stream
         audio_handler = AudioHandler(song_path)
+        # Passing our audio slicer our audio handler
+        audio_slicer = AudioFrameProcessor(fps, beat_times=audio_handler.beat_times, onset_env=audio_handler.onset_env)
+        # Slicing all of our Audio Frames ->
+        audio_slicer.process_audio_features(audio_handler.duration)
+        # Print out our audio length
+        print("************************************************")
+        print("************************************************")
+        print("************************************************")
+
+        print(len(audio_slicer.normalized_features))
+        print("************************************************")
+        print("************************************************")
+        print("************************************************")
+
+        # Now that all of our audio is sliced we can start Handling our frames
+
         # Use ThreadPoolExecutor for concurrent processing
         with ThreadPoolExecutor() as executor:
             # Process all entries concurrently
@@ -107,10 +138,9 @@ class CombineAudioAndVideo:
                 # Removing our top entry
                 entry = mapping.pop(0)
 
-                #Queing our task
-                # Here we are giving it the frame info, as well as the Audio mapper
-                # It should use and the file saver it should use
-                future = executor.submit(self.process_audio_and_video_entry, entry, fps, frame_holder,audio_handler)
+                # Here we are passing it all of the objects we created to process
+                # And save all of our frames :)
+                future = executor.submit(self.process_audio_and_video_entry,entry = entry, file_handler = file_handler, audio_slicer=audio_slicer)
                 #Adding this entry to the future so that it is completed:
                 futures.append(future)
 
@@ -118,8 +148,25 @@ class CombineAudioAndVideo:
             for future in futures:
                 future.result()
 
-        return frame_holder
+        # Here we pass our file handler so we can save or do whatever other processing
+        # we still need to do
+        return file_handler
 
+    def map_csv_of_frames(self, csv_path):
+        # Load the video frame data
+        frame_data = pd.read_csv(csv_path)
+
+        # Ensure correct column names (update based on your CSV)
+        if 'Frame File Path' not in frame_data.columns or 'Timestamp (s)' not in frame_data.columns:
+            raise ValueError("Expected columns 'Frame File Path' and 'Timestamp (s)' not found in the CSV")
+
+        # Create mapping directly
+        mapping = frame_data[['Timestamp (s)', 'Frame File Path']].rename(
+            columns={'Timestamp (s)': 'Frame #', 'Frame File Path': 'Frame File Path'}
+        )
+
+        # Convert to list of dictionaries if needed
+        return mapping.to_dict(orient='records')
 
     def map_audio_to_video_frames(self, csv_path, audio_path, fps):
         """
@@ -139,7 +186,6 @@ class CombineAudioAndVideo:
                     """
         # Load the video frame data
         frame_data = pd.read_csv(csv_path)
-
         # Load the audio file
         audio, sr = librosa.load(audio_path, sr=None)
         # Duration of a single video frame in seconds

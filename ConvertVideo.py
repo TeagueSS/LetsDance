@@ -35,7 +35,6 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
     # Creating that sub folder ->
     os.makedirs(output_folder, exist_ok=True)
 
-
     logging.info("Attempting to import" + videoPath)
     # Here we need to turn a video in to a folder of syncedFrames
     cap = cv2.VideoCapture(videoPath)
@@ -83,7 +82,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
 
             # Now that we have saved our frame we can update our export CSV ->
             # Calculate the timestamp for the frame
-            timestamp = frame_count / fps  # Time in seconds
+            timestamp = frame_count # Here we just want the frame number ->
             frameTimings.append([framePath, timestamp])  # Append file path and timestamp
 
             # Increasing our frame count

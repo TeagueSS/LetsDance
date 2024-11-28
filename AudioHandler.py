@@ -24,8 +24,15 @@ class AudioHandler:
 
         # Saving our y and SR
         self.audio, self.sampleRate = librosa.load(self.audio_path)  # Use the actual file path
+        # Getting all of our information once
+        # Loading the audio and sample rate
+        #self.audio, self.sample_rate = librosa.load(self.audio_path, sr=None)
+
+        # Getting the duration using audio and sample rate
+        self.duration = librosa.get_duration(y=self.audio, sr=self.sampleRate)
 
         self.loadFile()
+        self.build_beat_based_audio_map()
 
     def loadFile(self):
         # Get tempo and beat frames
@@ -161,6 +168,39 @@ class AudioHandler:
 
         plt.tight_layout()
         plt.show()
+
+    def build_beat_based_audio_map(self):
+        """/
+        Our previous implementation woudln't have provided any information on beat
+        so here we are going to make an implementation just for audio beats ->
+        """
+        # Load audio
+        y = self.audio
+        sr = self.sampleRate
+
+        # Onset envelope
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+
+        # BPM (scalar feature)
+        tempo, beat_frames = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
+
+        # Beat positions (sequence feature)
+        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+
+        # Periodicity (Fourier Transform of onset envelope)
+        fft_result = np.abs(np.fft.rfft(onset_env))
+        freqs = np.fft.rfftfreq(len(onset_env), d=1 / sr)
+
+        # Choose dominant rhythm frequencies (optional)
+        dominant_rhythm = freqs[np.argmax(fft_result)]
+
+        # Saving all of these to our class
+        self.tempo = tempo
+        self.beat_times = beat_times
+        self.dominant_rhythm = dominant_rhythm
+        self.onset_env = onset_env
+        #return features
+        #print(features)
 
     def create_and_view_subsection_audio_map(self, start_ms: int, end_ms: int):
         """
