@@ -190,6 +190,15 @@ def process_links(csv_file):
 
         print(f"Download paths saved to: {output_csv_path}")
 
+    # Once all of our videos are downloaded we need to process them
+    #TODO
+    """
+    We need to redownload all of our videos in a format we can actually use from now on -> 
+    1. Download them 
+    2. Convert them to .mp4 
+    3. Pass them to the Conversion into our data base
+    """
+
 # Path to the input CSV file containing YouTube titles and links
 input_csv = csvPath
 
