@@ -20,7 +20,7 @@ def parseSongs(filePath):
             print("Title: " + songs['title'] + "    Link: " + songs['link'])
 #
 # #Parsing our songs from our file path ->
-csvPath = "/Users/teaguesangster/Code/Python/CS450/DataSetup/DanceSongs.csv"
+csvPath = "C:/Users/sangs/Code/LetsDance/DanceSongs.csv"
 # #parseSongs(csvPath)
 #
 # downloaded_files = []  # List to store file paths
@@ -114,7 +114,7 @@ import csv
 from yt_dlp import YoutubeDL
 
 # Paths
-base_download_dir = "/Volumes/Samsung/CS450"
+base_download_dir = "C:/Users/sangs/Code/LetsDance/DownloadedVideosForProcessing"
 output_csv_path = os.path.join(base_download_dir, "downloaded_paths.csv")
 
 # Initialize lists for storing paths
