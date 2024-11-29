@@ -12,6 +12,7 @@ from Training.TensorFlowProcessing import TensorFlowDataPrep
 from visualisation import *
 from encode import SkeletonData, DataSaver , AudioData
 from CombineAudioAndVideo import *
+
 import matplotlib.pyplot as plt
 from Training import TensorFlowProcessing
 # Defining our test file paths ->
@@ -440,7 +441,7 @@ def test_tensor_encoding_MultiThreaded():
     logging.info("Video conversion completed.")
     # Now that we have our Video information lets get our audio information
     ActionHandler = CombineAudioAndVideo("No Youtube link needed")
-    #map_csv_of_frames
+    # map_csv_of_frames
     sycned_frames = ActionHandler.map_csv_of_frames(csv_Path)
 
     # Now that we have our frames trying to convert them
@@ -462,6 +463,16 @@ def test_tensor_encoding_MultiThreaded():
 
     #print(str(len(frames.skeleton_data)))
     #print(frames.get_frame(0))
+
+    #Now that we have our frames we need to see if we can
+    #fully import all of our files
+    frames.print_frames_information()
+    # Now we can see if we can get it to sort our information
+    frames.sort_frame_entries()
+    # Now that they've been sorted printing them again ->
+    frames.print_frames_information()
+
+    #https://www.codetogether.com/join/d9197dac1743571873bcaf6b37e20134
 
 
 

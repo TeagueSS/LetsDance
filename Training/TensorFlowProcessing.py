@@ -30,6 +30,34 @@ class TensorFlowDataPrep:
         # our frame number is so we can know what is where and then sort it after ->
         self.frame_number.append(frame_number)
 
+    def print_frames_information(self):
+        # Here we need to take our information
+        # And print it to the console to make sure we
+        # Have the information we need
+        for audio, frame, number in zip(self.audio_data, self.frame_data, self.frame_number):
+            print(f"Frame Number: {number}")
+            print(f"Audio Data: {audio}")
+            print(f"Frame Data: {frame}")
+            print('-' * 40)  # Separator line
+
+    # A method to sort all of our frame sbc there's no cuarentee they're
+    # actually in order ->
+    def sort_frame_entries(self):
+        # Combine the lists into a list of tuples
+        combined = list(zip(self.frame_number, self.audio_data, self.frame_data))
+
+        # Sort the combined list by frame_number (the first element of each tuple)
+        combined.sort(key=lambda x: x[0])
+
+        # Unpack the sorted data back into individual lists
+        self.frame_number, self.audio_data, self.frame_data = zip(*combined)
+
+        # Convert the tuples back to lists
+        self.frame_number = list(self.frame_number)
+        self.audio_data = list(self.audio_data)
+        self.frame_data = list(self.frame_data)
+
+
     #TODO -> add sorting
     def save(self, file_path):
         """
@@ -48,7 +76,7 @@ class TensorFlowDataPrep:
     def load(self, file_path):
         """
         Load audio and frame data from a compressed .npz file.
-
+        
         Parameters:
         file_path (str): The path from where the data will be loaded.
         """

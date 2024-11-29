@@ -5,7 +5,7 @@ import numpy as np
 import librosa.feature
 import librosa.display
 from matplotlib import pyplot as plt
-
+    #Hi here
 class AudioHandler:
     """/
         Meant to  process audio files using the librosa library. ->
@@ -30,7 +30,7 @@ class AudioHandler:
 
         # Getting the duration using audio and sample rate
         self.duration = librosa.get_duration(y=self.audio, sr=self.sampleRate)
-
+        print("Hi")
         self.loadFile()
         self.build_beat_based_audio_map()
 
