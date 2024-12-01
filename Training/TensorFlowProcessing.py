@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from tensorboard.compat import tf
 
@@ -66,12 +68,22 @@ class TensorFlowDataPrep:
         Parameters:
         file_path (str): The path where the data will be saved.
         """
-        # Convert lists to NumPy arrays
-        audio_array = np.array(self.audio_data)
-        frame_array = np.array(self.frame_data)
+        # Extract data from frames
+        audio_array = self.audio_data
+        frame_array = self.frame_data
 
-        # Save arrays to a compressed .npz file
+        # Convert lists to numpy arrays
+        audio_array = np.array(audio_array)
+        frame_array = np.array(frame_array)
+
+        # **Ensure the directory exists**
+        directory = os.path.dirname(file_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Save the data
         np.savez_compressed(file_path, audio=audio_array, frame=frame_array)
+        print(f"Data saved successfully to {file_path}")
 
     def load(self, file_path):
         """
@@ -86,6 +98,16 @@ class TensorFlowDataPrep:
         # Convert loaded arrays back to lists
         self.audio_data = data['audio'].tolist()
         self.frame_data = data['frame'].tolist()
+        # print each entry
+        # Print each entry in audio_data
+        print("Audio Data Entries:")
+        for idx, audio_entry in enumerate(self.audio_data):
+            print(f"Entry {idx}: {audio_entry}")
+
+        # Print each entry in frame_data
+        print("\nFrame Data Entries:")
+        for idx, frame_entry in enumerate(self.frame_data):
+            print(f"Entry {idx}: {frame_entry}")
 
 
 

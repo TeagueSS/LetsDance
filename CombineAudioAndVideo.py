@@ -1,18 +1,23 @@
 import argparse
+import csv
 import logging
+import os
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 
+import cv2
 import librosa
 import pandas as pd
 import numpy as np
 
 from AudioHandler import AudioHandler
-from ConvertVideo import convertFrameIntoPose
+from ConvertVideo import convertFrameIntoPose, convertVideoIntoSyncedFrames
+from Testing.Tests import OUTPUT_PATH
 from Training.AudioSlicing import AudioFrameProcessor
 from Training.TensorFlowProcessing import TensorFlowDataPrep
+#from dowload import download_audio, download_and_transcode_video
 from encode import SyncedSkeletonDataAndAudio
 # Initialize a lock for writing to the HDF5 file
 lock = threading.Lock()
@@ -24,12 +29,7 @@ class CombineAudioAndVideo:
 
         # Our methods can interact
 
-    def main(songYoutubeLink: str, savePath: str, timeCropFront: int, timeCropBack: int):
-        parser = argparse.ArgumentParser(description='Combine audio files and video files')
-        # Importing our
-        # This method will call of the methods we all made
 
-        #map_audio_to_video_frames
 
     #entry, file_handler,audio_slicer
     def process_audio_and_video_entry(self, entry,  file_handler : TensorFlowDataPrep,

@@ -471,6 +471,11 @@ def test_tensor_encoding_MultiThreaded():
     frames.sort_frame_entries()
     # Now that they've been sorted printing them again ->
     frames.print_frames_information()
+    # Saving
+    save_path = OUTPUT_PATH + "00"
+    frames.save(save_path)
+    path_to_load = save_path + ".npz"
+    frames.load(path_to_load)
 
     #https://www.codetogether.com/join/d9197dac1743571873bcaf6b37e20134
 
