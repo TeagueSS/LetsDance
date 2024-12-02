@@ -2,8 +2,10 @@ import os
 import numpy as np
 import datetime
 import tensorflow as tf
+from keras.src.callbacks import ModelCheckpoint
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
+from tensorboard.program import TensorBoard
 from tensorflow.keras.models import Sequential, load_model, Model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Concatenate, Input, LeakyReLU
 from tensorflow.keras.optimizers import Adam
@@ -21,28 +23,28 @@ import tensorflow as tf
 #os.environ['CUDA_VISIBLE_DEVICES'] = ''
 #print(tf.config.list_physical_devices('GPU'))
 # Set environment variables to control threading behavior
-#os.environ['TENSORFLOW_INTRA_OP_PARALLELISM_THREADS'] = '30'  # Number of threads for operations like matrix multiplication
-#os.environ['TENSORFLOW_INTER_OP_PARALLELISM_THREADS'] = '14'  # Number of threads for independent operations
+os.environ['TENSORFLOW_INTRA_OP_PARALLELISM_THREADS'] = '30'  # Number of threads for operations like matrix multiplication
+os.environ['TENSORFLOW_INTER_OP_PARALLELISM_THREADS'] = '14'  # Number of threads for independent operations
 
 # Alternatively, set threading using TensorFlow's configuration methods
-#tf.config.threading.set_intra_op_parallelism_threads(30)
-#tf.config.threading.set_inter_op_parallelism_threads(14)
+tf.config.threading.set_intra_op_parallelism_threads(30)
+tf.config.threading.set_inter_op_parallelism_threads(14)
 
-# Configure GPU settings
-#gpus = tf.config.list_physical_devices('GPU')
-# Set the thread mode to dedicate threads to GPU operations
-# os.environ['TF_GPU_THREAD_MODE'] = 'gpu_private'
-# if gpus:
-#     try:
-#         # Set memory growth to avoid TensorFlow from allocating all GPU memory at once
-#         for gpu in gpus:
-#             tf.config.experimental.set_memory_growth(gpu, True)
-#         # If you want to set a specific memory limit (e.g., 4096 MB), uncomment the following lines:
-#         # tf.config.set_logical_device_configuration(
-#         #     gpus[0],
-#         #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)])
-#     except RuntimeError as e:
-#         print(e)
+#configure GPU settings
+gpus = tf.config.list_physical_devices('GPU')
+#Set the thread mode to dedicate threads to GPU operations
+os.environ['TF_GPU_THREAD_MODE'] = 'gpu_private'
+if gpus:
+    try:
+        # Set memory growth to avoid TensorFlow from allocating all GPU memory at once
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # If you want to set a specific memory limit (e.g., 4096 MB), uncomment the following lines:
+        # tf.config.set_logical_device_configuration(
+        #     gpus[0],
+        #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)])
+    except RuntimeError as e:
+        print(e)
 
 
 

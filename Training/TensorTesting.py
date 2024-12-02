@@ -2,6 +2,7 @@ import os
 import numpy as np
 import datetime
 import tensorflow as tf
+from keras.src.callbacks import Callback
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential, load_model, Model
@@ -9,6 +10,77 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, Concatenate, Input, Le
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 import joblib  # For saving and loading scalers
+
+
+
+import os
+import tensorflow as tf
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+print(tf.config.list_physical_devices('GPU'))
+# Set environment variables to control threading behavior
+os.environ['TENSORFLOW_INTRA_OP_PARALLELISM_THREADS'] = '30'  # Number of threads for operations like matrix multiplication
+os.environ['TENSORFLOW_INTER_OP_PARALLELISM_THREADS'] = '14'  # Number of threads for independent operations
+
+# Alternatively, set threading using TensorFlow's configuration methods
+tf.config.threading.set_intra_op_parallelism_threads(30)
+tf.config.threading.set_inter_op_parallelism_threads(14)
+
+#configure GPU settings
+gpus = tf.config.list_physical_devices('GPU')
+#Set the thread mode to dedicate threads to GPU operations
+os.environ['TF_GPU_THREAD_MODE'] = 'gpu_private'
+if gpus:
+    try:
+        # Set memory growth to avoid TensorFlow from allocating all GPU memory at once
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # If you want to set a specific memory limit (e.g., 4096 MB), uncomment the following lines:
+        # tf.config.set_logical_device_configuration(
+        #     gpus[0],
+        #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)])
+    except RuntimeError as e:
+        print(e)
+
+
+class WindowSizeAdjuster(Callback):
+    def __init__(self, initial_window_size, max_window_size, increment, dataset_function, audio_data, frame_data):
+        """
+        Custom callback to increase the window size during training.
+        - initial_window_size: Starting size of the window.
+        - max_window_size: Maximum allowable window size.
+        - increment: How much to increase the window size by after each adjustment.
+        - dataset_function: Function to regenerate the dataset with the new window size.
+        - audio_data: Full audio data used to regenerate the dataset.
+        - frame_data: Full frame data used to regenerate the dataset.
+        """
+        super().__init__()
+        self.window_size = initial_window_size
+        self.max_window_size = max_window_size
+        self.increment = increment
+        self.dataset_function = dataset_function
+        self.audio_data = audio_data
+        self.frame_data = frame_data
+
+    def on_epoch_end(self, epoch, logs=None):
+        # Adjust window size every 5 epochs (or your desired interval)
+        if epoch > 0 and epoch % 5 == 0 and self.window_size < self.max_window_size:
+            self.window_size = min(self.window_size + self.increment, self.max_window_size)
+            print(f"\nAdjusting window size to: {self.window_size}")
+
+            # Regenerate dataset with new window size
+            X_audio, X_prev_frame, y_next_frame, _, _ = self.dataset_function(self.audio_data, self.frame_data,
+                                                                              time_steps=self.window_size)
+
+            # Split the new data
+            X_audio_train, X_audio_val, X_prev_frame_train, X_prev_frame_val, y_train, y_val = train_test_split(
+                X_audio, X_prev_frame, y_next_frame, test_size=0.2, random_state=42
+            )
+
+            # Update the training and validation datasets in the model
+            self.model.train_data = ([X_audio_train, X_prev_frame_train], y_train)
+            self.model.val_data = ([X_audio_val, X_prev_frame_val], y_val)
+            print(f"Dataset updated for new window size: {self.window_size}")
+
 
 # Define paths for loading and saving data and models
 input_directory = "/Users/teaguesangster/Desktop/ProcessedEntries"
@@ -94,7 +166,7 @@ def combine_npz_files(input_directory):
 
     return combined_audio_data, combined_frame_data
 
-def preprocess_data(audio_data, frame_data, time_steps=60):
+def preprocess_data(audio_data, frame_data, time_steps=200):
     """
     Preprocess audio and frame data to create time-step sequences for training an RNN.
     """
@@ -131,7 +203,9 @@ def build_rnn_model(audio_input_shape, frame_input_shape):
     # Audio input layer
     audio_input = Input(shape=audio_input_shape, name='audio_input')
 
-    # First LSTM layer with increased units and return_sequences=True
+    # Long Term / Short term Neuerons for our audio layer
+    # -> Audio data is continious and requires context so long term memory
+    # Is important
     lstm_out_1 = LSTM(256, return_sequences=True)(audio_input)
     lstm_out_1 = Dropout(0.5)(lstm_out_1)
 
@@ -147,7 +221,7 @@ def build_rnn_model(audio_input_shape, frame_input_shape):
 
     # Dense layer with LeakyReLU activation
     dense_out = Dense(64)(concat)
-    dense_out = LeakyReLU(alpha=0.1)(dense_out)
+    dense_out = LeakyReLU(negative_slope=0.1)(dense_out)
 
     # Output layer
     output = Dense(frame_input_shape[0], activation='linear')(dense_out)
@@ -213,6 +287,10 @@ def load_preprocessed_data(data_path):
     audio_scaler = joblib.load(audio_scaler_path)
     frame_scaler = joblib.load(frame_scaler_path)
     return X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler
+
+
+
+
 
 if __name__ == "__main__":
     # Check if preprocessed data and scalers exist
@@ -285,10 +363,10 @@ def predict_body_mappings(model_path, audio_scaler, frame_scaler, audio_input_ar
     """
     Predict body mappings for given audio input sequences using a pre-trained model.
     """
-    # Load the pre-trained model
+    # Load the pre-trained model (So we can work on it in batches overnight)
     model = load_model(model_path)
 
-    # Normalize the audio input using the scaler
+    # Normalize the audio input using the scaler (Our encoder)
     audio_input_normalized = audio_scaler.transform(audio_input_array)
 
     # Normalize the initial frame
