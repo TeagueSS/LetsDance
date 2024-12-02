@@ -7,45 +7,20 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential, load_model, Model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Concatenate, Input, LeakyReLU
 from tensorflow.keras.optimizers import Adam
-import tensorflow.keras.callbacks
+from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+import joblib  # For saving and loading scalers
 
 # Define paths for loading and saving data and models
-# Replace with your actual paths
 input_directory = "/Users/teaguesangster/Desktop/ProcessedEntries"
 output_model_path = "/Users/teaguesangster/Desktop/saved_audio_to_frame_model2_with_context.keras"
 
+# Derive the directory from output_model_path
+model_directory = os.path.dirname(output_model_path)
 
-
-import os
-import tensorflow as tf
-#os.environ['CUDA_VISIBLE_DEVICES'] = ''
-#print(tf.config.list_physical_devices('GPU'))
-# Set environment variables to control threading behavior
-#os.environ['TENSORFLOW_INTRA_OP_PARALLELISM_THREADS'] = '30'  # Number of threads for operations like matrix multiplication
-#os.environ['TENSORFLOW_INTER_OP_PARALLELISM_THREADS'] = '14'  # Number of threads for independent operations
-
-# Alternatively, set threading using TensorFlow's configuration methods
-#tf.config.threading.set_intra_op_parallelism_threads(30)
-#tf.config.threading.set_inter_op_parallelism_threads(14)
-
-# Configure GPU settings
-#gpus = tf.config.list_physical_devices('GPU')
-# Set the thread mode to dedicate threads to GPU operations
-# os.environ['TF_GPU_THREAD_MODE'] = 'gpu_private'
-# if gpus:
-#     try:
-#         # Set memory growth to avoid TensorFlow from allocating all GPU memory at once
-#         for gpu in gpus:
-#             tf.config.experimental.set_memory_growth(gpu, True)
-#         # If you want to set a specific memory limit (e.g., 4096 MB), uncomment the following lines:
-#         # tf.config.set_logical_device_configuration(
-#         #     gpus[0],
-#         #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)])
-#     except RuntimeError as e:
-#         print(e)
-
-
-
+# Construct paths for preprocessed data and scalers within the same directory
+preprocessed_data_path = os.path.join(model_directory, 'preprocessed_data.npz')
+audio_scaler_path = os.path.join(model_directory, 'audio_scaler.save')
+frame_scaler_path = os.path.join(model_directory, 'frame_scaler.save')
 
 # Set a custom learning rate
 learning_rate = 0.001  # You can experiment with this value
@@ -84,10 +59,7 @@ early_stopping = EarlyStopping(
 # Combine callbacks
 callbacks = [checkpoint_callback, reduce_lr, early_stopping, tensorboard_callback]
 
-
 # Load and Combine Data
-# Here we have all of our idividual trainings, and if we get more we can find them
-# Here
 def combine_npz_files(input_directory):
     audio_data_list = []
     frame_data_list = []
@@ -125,24 +97,16 @@ def combine_npz_files(input_directory):
 def preprocess_data(audio_data, frame_data, time_steps=60):
     """
     Preprocess audio and frame data to create time-step sequences for training an RNN.
-    Here we have to make our valid "Sequences" For our data to use for trianing.
-
     """
-    # Normalzing our Audio data so we can ensure it trains in the correct way
-    # and also reverses in the correct format ->
+    # Normalizing our Audio data
     audio_scaler = MinMaxScaler()
     audio_data_normalized = audio_scaler.fit_transform(audio_data)
 
-    # Normalize the frame data (even if it's between 0 and 1)
-    # We normaize it again as we can use our normalizer to reverse our encoding later on ->
-
-
+    # Normalize the frame data
     frame_scaler = MinMaxScaler()
     frame_data_normalized = frame_scaler.fit_transform(frame_data)
 
     # Create sequences of time steps for audio input, previous frame input, and frame output
-    # Here our samples are everything except for the first one for our Frames,
-    # (We want our model to always know where to start the dance)
     num_samples = audio_data_normalized.shape[0] - time_steps - 1
     audio_sequences, previous_frames, next_frames = [], [], []
 
@@ -163,7 +127,6 @@ def preprocess_data(audio_data, frame_data, time_steps=60):
     # Return our arrays of frames and scalers
     return X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler
 
-# Build the RNN Model
 def build_rnn_model(audio_input_shape, frame_input_shape):
     # Audio input layer
     audio_input = Input(shape=audio_input_shape, name='audio_input')
@@ -196,33 +159,12 @@ def build_rnn_model(audio_input_shape, frame_input_shape):
     # Return the model
     return model
 
-def train_rnn_model(model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs=50, batch_size=32, callbacks=None):
-    # Split data into training and validation sets
-    X_audio_train, X_audio_val, X_prev_frame_train, X_prev_frame_val, y_train, y_val = train_test_split(
-        X_audio, X_prev_frame, y_next_frame, test_size=0.2, random_state=42
-    )
-
-    # Train the model
-    history = model.fit(
-        [X_audio_train, X_prev_frame_train], y_train,
-        validation_data=([X_audio_val, X_prev_frame_val], y_val),
-        epochs=epochs,
-        batch_size=batch_size,
-        callbacks=callbacks,
-        verbose=1
-    )
-
-    return history, [X_audio_val, X_prev_frame_val], y_val
-
-# Evaluate and Make Predictions
 def evaluate_and_predict(model, X_val, y_val, frame_scaler, num_predictions=5):
     """
     Evaluate the trained model and make predictions on the validation set.
     """
     # Evaluate the model on the validation set
-    # Here we predict our loss (How far off) we are from our desired entries
     val_loss, val_mae = model.evaluate(X_val, y_val, verbose=1)
-    # We pring it out as we train so we can see these numbers hopefully go down overtime ->
     print(f"Validation Loss: {val_loss}")
     print(f"Validation MAE: {val_mae}")
 
@@ -230,8 +172,6 @@ def evaluate_and_predict(model, X_val, y_val, frame_scaler, num_predictions=5):
     predictions = model.predict(X_val)
 
     # Invert scaling to interpret predictions in the original scale
-    # Here because we compressed our data so we can train off of it,
-    # We let it scale back up so we can actually Visulaize our results ->
     predictions_unscaled = frame_scaler.inverse_transform(predictions)
     y_val_unscaled = frame_scaler.inverse_transform(y_val)
 
@@ -241,56 +181,110 @@ def evaluate_and_predict(model, X_val, y_val, frame_scaler, num_predictions=5):
         print(f"Predicted Frame {i + 1}: {predictions_unscaled[i]}")
         print(f"Actual Frame {i + 1}: {y_val_unscaled[i]}")
 
+# Functions to save and load preprocessed data and scalers
+def save_preprocessed_data(X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler, filename):
+    np.savez_compressed(filename, X_audio=X_audio, X_prev_frame=X_prev_frame, y_next_frame=y_next_frame)
+    joblib.dump(audio_scaler, 'audio_scaler.save')
+    joblib.dump(frame_scaler, 'frame_scaler.save')
+
+def load_preprocessed_data(filename):
+    data = np.load(filename)
+    X_audio = data['X_audio']
+    X_prev_frame = data['X_prev_frame']
+    y_next_frame = data['y_next_frame']
+    audio_scaler = joblib.load('audio_scaler.save')
+    frame_scaler = joblib.load('frame_scaler.save')
+    return X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler
 
 
 
-   # Main Function to Run the Entire Pipeline
+
+# Functions to save and load preprocessed data and scalers
+def save_preprocessed_data(X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler, data_path):
+    np.savez_compressed(data_path, X_audio=X_audio, X_prev_frame=X_prev_frame, y_next_frame=y_next_frame)
+    joblib.dump(audio_scaler, audio_scaler_path)
+    joblib.dump(frame_scaler, frame_scaler_path)
+
+def load_preprocessed_data(data_path):
+    data = np.load(data_path)
+    X_audio = data['X_audio']
+    X_prev_frame = data['X_prev_frame']
+    y_next_frame = data['y_next_frame']
+    audio_scaler = joblib.load(audio_scaler_path)
+    frame_scaler = joblib.load(frame_scaler_path)
+    return X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler
+
 if __name__ == "__main__":
-    # Load and combine data
-    audio_data, frame_data = combine_npz_files(input_directory)
+    # Check if preprocessed data and scalers exist
+    if os.path.exists(preprocessed_data_path) and os.path.exists(audio_scaler_path) and os.path.exists(frame_scaler_path):
+        # Load preprocessed data
+        print("Loading preprocessed data...")
+        X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler = load_preprocessed_data(preprocessed_data_path)
+    else:
+        # Load and combine data
+        print("Combining raw data...")
+        audio_data, frame_data = combine_npz_files(input_directory)
+        # Preprocess the data to create sequences for the RNN
+        print("Preprocessing data...")
+        time_steps = 60  # Ensure this matches the value in preprocess_data
+        X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler = preprocess_data(
+            audio_data, frame_data, time_steps
+        )
+        # Save preprocessed data
+        print("Saving preprocessed data...")
+        save_preprocessed_data(X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler, preprocessed_data_path)
 
-    # Preprocess the data to create sequences for the RNN
-    time_steps = 60  # Ensure this matches the value in preprocess_data
-    X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler = preprocess_data(
-        audio_data, frame_data, time_steps
+    # Split the data
+    print("Splitting data into training and validation sets...")
+    X_audio_train, X_audio_val, X_prev_frame_train, X_prev_frame_val, y_train, y_val = train_test_split(
+        X_audio, X_prev_frame, y_next_frame, test_size=0.2, random_state=42
     )
 
     # Build the RNN model
     audio_input_shape = (X_audio.shape[1], X_audio.shape[2])  # Shape is (time_steps, audio_features)
     frame_input_shape = (X_prev_frame.shape[1],)  # Shape is (number of frame features,)
-    model = build_rnn_model(audio_input_shape, frame_input_shape)
 
-    # Train the RNN model with callbacks
-    epochs = 50
-    batch_size = 32
-    history, X_val, y_val = train_rnn_model(
-        model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs, batch_size, callbacks=callbacks
-    )
+    # Check if the model exists
+    if os.path.exists(output_model_path):
+        # Load the saved model
+        print("Loading saved model...")
+        model = load_model(output_model_path)
+    else:
+        # Build the RNN model
+        print("Building a new model...")
+        model = build_rnn_model(audio_input_shape, frame_input_shape)
+
+    # Decide whether to train the model
+    train_model = True  # Set to False if you want to skip training when model exists
+
+    if train_model or not os.path.exists(output_model_path):
+        # Train the RNN model with callbacks
+        print("Training the model...")
+        epochs = 50
+        batch_size = 32
+        history = model.fit(
+            [X_audio_train, X_prev_frame_train], y_train,
+            validation_data=([X_audio_val, X_prev_frame_val], y_val),
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=callbacks,
+            verbose=1
+        )
+    else:
+        print("Skipping training as the model already exists.")
 
     # Evaluate the model and make predictions
+    print("Evaluating the model and making predictions...")
+    X_val = [X_audio_val, X_prev_frame_val]
     evaluate_and_predict(model, X_val, y_val, frame_scaler)
 
 
 
 # Prediction Function
-# Here we can provide audio and actually see our model return frames
-# Which we can then later Visualize through Predict Body mappings
 def predict_body_mappings(model_path, audio_scaler, frame_scaler, audio_input_array, initial_frame, num_predictions):
     """
     Predict body mappings for given audio input sequences using a pre-trained model.
-
-    Parameters:
-    - model_path (str): Path to the saved model (.h5 file).
-    - audio_scaler (MinMaxScaler): Scaler used for normalizing audio data.
-    - frame_scaler (MinMaxScaler): Scaler used for normalizing frame data.
-    - audio_input_array (ndarray): Input audio data with shape (num_timesteps, features).
-    - initial_frame (ndarray): Initial body frame with shape (features,) to start the prediction.
-    - num_predictions (int): Number of body frames to predict.
-
-    Returns:
-    - predicted_frames (ndarray): Predicted body frames with shape (num_predictions, features).
     """
-
     # Load the pre-trained model
     model = load_model(model_path)
 
@@ -322,12 +316,8 @@ def predict_body_mappings(model_path, audio_scaler, frame_scaler, audio_input_ar
         previous_frame_normalized = predicted_frame_normalized.flatten()
 
         # Optional: Shift the audio input for continuous prediction
-        # Assuming new audio information is available, you could shift the audio input to always keep `num_timesteps`.
-        # Here, we use the existing sequence as an example.
         if i + 1 < len(audio_input_normalized):
             audio_input_normalized = np.roll(audio_input_normalized, -1, axis=0)  # Shift one time step to the left
-            # Optionally, replace the last element with new audio features
-            # audio_input_normalized[-1] = new_audio_features_normalized
 
     # Convert list to ndarray for consistency
     predicted_frames = np.array(predicted_frames)
