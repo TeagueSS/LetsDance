@@ -1,36 +1,89 @@
 import os
 import numpy as np
+import datetime
+import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Concatenate, Input
-from tensorflow.keras.models import Model
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import Sequential, load_model, Model
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Concatenate, Input, LeakyReLU
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, EarlyStopping
+
+# Define paths for loading and saving data and models
+# Replace with your actual paths
+input_directory = "D:/Saved"
+output_model_path = "D:/saved_audio_to_frame_model_with_context.keras"
+
+
+
+# Set a custom learning rate
+learning_rate = 0.001  # You can experiment with this value
+optimizer = Adam(learning_rate=learning_rate)
+
+# Log directory for TensorBoard
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+# Model checkpoint to save the best model
+checkpoint_callback = ModelCheckpoint(
+    filepath=output_model_path,
+    save_best_only=True,
+    monitor='val_loss',
+    mode='min',
+    verbose=1
+)
+
+# Reduce learning rate when a metric has stopped improving
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=5,
+    min_lr=1e-6,
+    verbose=1
+)
+
+# Stop training when a monitored metric has stopped improving
+early_stopping = EarlyStopping(
+    monitor='val_loss',
+    patience=10,
+    restore_best_weights=True,
+    verbose=1
+)
+
+# Combine callbacks
+callbacks = [checkpoint_callback, reduce_lr, early_stopping, tensorboard_callback]
+
 
 # Load and Combine Data
 # Here we have all of our idividual trainings, and if we get more we can find them
 # Here
 def combine_npz_files(input_directory):
-    """
-    Combine multiple .npz files from a directory into a single dataset.
-    """
     audio_data_list = []
     frame_data_list = []
 
     # Iterate through all .npz files in the input directory and load their contents
     for file_name in os.listdir(input_directory):
-        if file_name.endswith('.npz'):
+        # Skip hidden files and system files
+        if file_name.endswith('.npz') and not file_name.startswith(('.', '_')):
             file_path = os.path.join(input_directory, file_name)
             print(f"Loading data from {file_path}...")
 
-            # Load data from the .npz file
-            data = np.load(file_path)
-            audio_data = data['audio']
-            frame_data = data['frame']
+            try:
+                # Load data from the .npz file
+                data = np.load(file_path)
+                audio_data = data['audio']
+                frame_data = data['frame']
 
-            # Append loaded data to lists
-            audio_data_list.append(audio_data)
-            frame_data_list.append(frame_data)
+                # Append loaded data to lists
+                audio_data_list.append(audio_data)
+                frame_data_list.append(frame_data)
+            except Exception as e:
+                print(f"Error loading {file_path}: {e}")
+                continue  # Skip this file and continue with the next
+
+    # Check if any data was loaded
+    if not audio_data_list or not frame_data_list:
+        raise ValueError("No valid data was loaded from the .npz files.")
 
     # Concatenate all loaded arrays into one long array
     combined_audio_data = np.concatenate(audio_data_list, axis=0)
@@ -38,8 +91,7 @@ def combine_npz_files(input_directory):
 
     return combined_audio_data, combined_frame_data
 
-
-def preprocess_data(audio_data, frame_data, time_steps=10):
+def preprocess_data(audio_data, frame_data, time_steps=60):
     """
     Preprocess audio and frame data to create time-step sequences for training an RNN.
     Here we have to make our valid "Sequences" For our data to use for trianing.
@@ -82,48 +134,42 @@ def preprocess_data(audio_data, frame_data, time_steps=10):
 
 # Build the RNN Model
 def build_rnn_model(audio_input_shape, frame_input_shape):
-    """
-    Build and compile an RNN model to map audio features and previous frames to predict the next frame.
-    Here each one of our layers are a differenent part of our date we either need to
-    encode or Decode ->
-    """
     # Audio input layer
     audio_input = Input(shape=audio_input_shape, name='audio_input')
-    # LSTM layer to process audio sequences
-    lstm_out = LSTM(100)(audio_input)
+
+    # First LSTM layer with increased units and return_sequences=True
+    lstm_out_1 = LSTM(256, return_sequences=True)(audio_input)
+    lstm_out_1 = Dropout(0.5)(lstm_out_1)
+
+    # Second LSTM layer
+    lstm_out_2 = LSTM(128)(lstm_out_1)
+    lstm_out_2 = Dropout(0.5)(lstm_out_2)
 
     # Previous frame input layer
     prev_frame_input = Input(shape=frame_input_shape, name='previous_frame_input')
 
     # Concatenate LSTM output and previous frame input
-    concat = Concatenate()([lstm_out, prev_frame_input])
+    concat = Concatenate()([lstm_out_2, prev_frame_input])
 
-    # Dense layer to predict next frame
-    output = Dense(frame_input_shape[0], activation='linear')(concat)
+    # Dense layer with LeakyReLU activation
+    dense_out = Dense(64)(concat)
+    dense_out = LeakyReLU(alpha=0.1)(dense_out)
+
+    # Output layer
+    output = Dense(frame_input_shape[0], activation='linear')(dense_out)
 
     # Build and compile the model
     model = Model(inputs=[audio_input, prev_frame_input], outputs=output)
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
     # Return the model
     return model
 
-# Train the RNN Model with Model Checkpointing
-def train_rnn_model(model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs=50, batch_size=32):
-    """
-    Train the RNN model with checkpointing to save the best model during training.
-    """
+def train_rnn_model(model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs=50, batch_size=32, callbacks=None):
     # Split data into training and validation sets
     X_audio_train, X_audio_val, X_prev_frame_train, X_prev_frame_val, y_train, y_val = train_test_split(
         X_audio, X_prev_frame, y_next_frame, test_size=0.2, random_state=42
     )
-
-    # Set up checkpointing to save the best model during training
-    checkpoint_callback = ModelCheckpoint(filepath=output_model_path,
-                                          save_best_only=True,
-                                          monitor='val_loss',
-                                          mode='min',
-                                          verbose=1)
 
     # Train the model
     history = model.fit(
@@ -131,7 +177,7 @@ def train_rnn_model(model, X_audio, X_prev_frame, y_next_frame, output_model_pat
         validation_data=([X_audio_val, X_prev_frame_val], y_val),
         epochs=epochs,
         batch_size=batch_size,
-        callbacks=[checkpoint_callback],
+        callbacks=callbacks,
         verbose=1
     )
 
@@ -164,20 +210,16 @@ def evaluate_and_predict(model, X_val, y_val, frame_scaler, num_predictions=5):
         print(f"Predicted Frame {i + 1}: {predictions_unscaled[i]}")
         print(f"Actual Frame {i + 1}: {y_val_unscaled[i]}")
 
-# Main Function to Run the Entire Pipeline
-if __name__ == "__main__":
-    # Define paths for loading and saving data and models
-    # Replace with your actual paths
-    input_directory = "/path/to/your/npz/files"
-    output_model_path = "/path/to/your/saved_audio_to_frame_model_with_context.h5"
 
+
+
+   # Main Function to Run the Entire Pipeline
+if __name__ == "__main__":
     # Load and combine data
     audio_data, frame_data = combine_npz_files(input_directory)
 
     # Preprocess the data to create sequences for the RNN
-    # Here we might need to increase this depending on how many frames of a dance sequence
-    # We want to pass it ->
-    time_steps = 10
+    time_steps = 60  # Ensure this matches the value in preprocess_data
     X_audio, X_prev_frame, y_next_frame, audio_scaler, frame_scaler = preprocess_data(
         audio_data, frame_data, time_steps
     )
@@ -187,15 +229,17 @@ if __name__ == "__main__":
     frame_input_shape = (X_prev_frame.shape[1],)  # Shape is (number of frame features,)
     model = build_rnn_model(audio_input_shape, frame_input_shape)
 
-    # Train the RNN model with checkpointing
+    # Train the RNN model with callbacks
     epochs = 50
     batch_size = 32
     history, X_val, y_val = train_rnn_model(
-        model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs, batch_size
+        model, X_audio, X_prev_frame, y_next_frame, output_model_path, epochs, batch_size, callbacks=callbacks
     )
 
     # Evaluate the model and make predictions
     evaluate_and_predict(model, X_val, y_val, frame_scaler)
+
+
 
 # Prediction Function
 # Here we can provide audio and actually see our model return frames
