@@ -1,7 +1,7 @@
 
 # Lets Dance!
 
-Lets dance is a School Project for CS450 meant to generate dance routines from imported.mp3 files. The code base is sepereated into folders depending on what stage of usage you are in. 
+Lets dance is a School Project for CS450 meant to generate dance routines from imported.mp3 files. The code base is separated into folders depending on what stage of usage you are in. 
     
     Participants:
         Teague Sangster
@@ -12,22 +12,22 @@ Lets dance is a School Project for CS450 meant to generate dance routines from i
 
 
 # How to Run
-    1. Create a new Anaconda Enviorment and install the packages listed at the bottom: 
-        (2 enviorments required, one for processing and one for running)
+    1. Create a new Anaconda Environment and install the packages listed at the bottom: 
+        (2 enviroments required, one for processing and one for running)
 
     2. Pick a List of Videos you wish to train your model off of or use the DanceSongs.csv provided in the path.
      (We are not Liable for the Legal Remifications of downloading, processing and/or training off of youtube Licensed property USE YOUTUBE VIDEOS AT YOUR OWN RISK)
 
-    2. Navagate to the DataPrep Folder and open download.py, Now go to the method called process_links and look at the assigned variabels above. 
-    They are what you will pass this function for your list, where to save, as well as any temporary holding folder for videos that will deleted after running.
+    2. Navigate to the DataPrep Folder and open download.py, Now go to the method called process_links and look at the assigned variables above. 
+    They are what you will pass this function for your list, where to save, as well as any temporary holding folder for videos that will be deleted after running.
 
-        ^^^^^ This step will take about a day as Downloading, transcoding, splitting, cropping, and then fianlly encoding for each video is quite Intensive. ^^^^
-        This task is optomized for High CPU core counts and usses a ThreadPool based approach. 
-        (This program ran on a 14 Core Apple M3 cpu, threading is highlighy optomized and will hit your Cores HARD)
-        You can make the opperation Single threaded by editing the code in CombineAudioAndVideo.py (process_audio_and_video_frames_Multi_Threaded method)
+        ^^^^^ This step will take about a day at Downloading, transcoding, splitting, cropping, and then finally encoding for each video is quite intensive. ^^^^
+        This task is optimized for High CPU core counts and uses a ThreadPool based approach. 
+        (This program ran on a 14 Core Apple M3 cpu, threading is highly optomized and will hit your Cores HARD)
+        You can make the operation Single threaded by editing the code in CombineAudioAndVideo.py (process_audio_and_video_frames_Multi_Threaded method)
 
-    3. Assuming your Data Is downlaoded and formatted to a folder on your Local machine open TrainAndSaveDanceRNN.py and give it the folder path. 
-    Once it has the folder path you can run the main method and let it run. This will take awhile. 
+    3. Assuming your Data is downloaded and formatted to a folder on your Local machine open TrainAndSaveDanceRNN.py and give it the folder path. 
+    Once it has the folder path you can run the main method and let it run. This will take a while. 
 
     4. Assuming your model is trained you can open BuildDanceFromAudioFile and define your saved paths from your model. Finally at the bottom call the method with your song file and it should generate a dance.
     Restart your song as you press play on the browser it opens and see your buddy come to life!
