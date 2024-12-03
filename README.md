@@ -40,7 +40,7 @@ Contains all of the needed methods for downloading videos, processing them, and 
     Notable Methods:
         Audio Handler: Uses Librosa to import and extract audio features 
 
-        Audio Slicer: Takes in an Audio Handler and a frame rate, then creates little subsections that correspond with those frames
+        Audio Slicer: Takes in an Audio Handler and a frame rate, then create little subsections that correspond with those frames
 
         Encode: Contains multiple methods for saving data without prepping it for tensorflow
 
@@ -59,10 +59,10 @@ Contains all of the needed methods for downloading videos, processing them, and 
         Convert Video: Contains methods for turning a video into frames
 
         Download.py **THE MAIN METHOD HERE** 
-            CONTAINS METHODS FOR DOWNLAODING, PROCESSING, AND ENCODING ALL IN ONE MULTITHREADED LOOP. 
-             This task is optomized for High CPU core counts and usses a ThreadPool based approach. 
-        (This program ran on a 14 Core Apple M3 cpu, threading is highlighy optomized and will hit your Cores HARD)
-        You can make the opperation Single threaded by editing the code in CombineAudioAndVideo.py (process_audio_and_video_frames_Multi_Threaded method)
+            CONTAINS METHODS FOR DOWNLOADING, PROCESSING, AND ENCODING ALL IN ONE MULTITHREADED LOOP. 
+             This task is optimized for High CPU core counts and uses a ThreadPool based approach. 
+        (This program ran on a 14 Core Apple M3 cpu, threading is highly optimized and will hit your Cores HARD)
+        You can make the operation Single threaded by editing the code in CombineAudioAndVideo.py (process_audio_and_video_frames_Multi_Threaded method)
 
 
 
