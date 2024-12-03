@@ -53,7 +53,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
     # Creating a counter for our frame #
     frame_count = 0
 
-    #Starting a timer for Video Data Prep Methods and Conversion
+    #Starting a timer for Video DataPrep
     logging.info("Starting video frame timings")
     start_time = time.time()
     logging.info("Started Converting Video")
@@ -97,7 +97,7 @@ def convertVideoIntoSyncedFrames(videoPath: str, outputFolderPath: str , videoNa
         writer.writerows(frameTimings)  # Write data rows
 
     # Logging completion of video conversion
-    logging.info("Data Prep Methods and Conversion Completed in " + str(time.time() - start_time) + " seconds")
+    logging.info("DataPrep Completed in " + str(time.time() - start_time) + " seconds")
     logging.info("Converted: " + str(len(frameTimings)) + " frames")
     logging.info("Average Frames converted per second: " + str(frame_count / (time.time() - start_time)) + " frames")
     logging.info("Exported to: " + outputFolderPath)

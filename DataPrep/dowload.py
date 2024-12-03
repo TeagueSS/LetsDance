@@ -286,7 +286,7 @@ def process_links(csv_file , temporary_path , final_path , output_csv_path ):
     We need to redownload all of our videos in a format we can actually use from now on -> 
     1. Download them 
     2. Convert them to .mp4 
-    3. Pass them to the Data Prep Methods and Conversion into our data base
+    3. Pass them to the DataPrep into our data base
     """
 
 

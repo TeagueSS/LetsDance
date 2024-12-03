@@ -1,26 +1,31 @@
 import os
 import logging
 
-from AudioHandler import AudioHandler
-from ConvertVideo import *
+import cv2
 
-from Training.AudioSlicing import AudioFrameProcessor
-from Training.TensorFlowProcessing import TensorFlowDataPrep
+#from LetsDance import DataPrep as DataPrep
+from DataPrep import AudioHandler
+from DataPrep import ConvertVideo
+
+from DataPrep.AudioSlicing  import AudioFrameProcessor
+from DataPrep.CombineAudioAndVideo import CombineAudioAndVideo
+from DataPrep.ConvertVideo import convertFramesIntoHDF5, convertVideoIntoSyncedFrames, convertFrameIntoPose
+from Training_Methods.TensorFlowProcessing import TensorFlowDataPrep
 from visualisation import *
-from encode import SkeletonData, DataSaver , AudioData
-from CombineAudioAndVideo import *
+from DataPrep.encode import SkeletonData, DataSaver , AudioData
+#from DataPrep.CombineAudioAndVideo import *
 
 import matplotlib.pyplot as plt
 
 # Defining our test file paths ->
-CONVERTED_VIDEO_PATH = "Outputs"
+CONVERTED_VIDEO_PATH = "Testing/Outputs"
 VIDEO_NAME ="Only_Girl_Riannah"
 VIDEO_TO_CONVERT = "Test Video and Audio/TestVideo_Only_Girl_Rihanna.mp4"
-FRAME_PATH = "Test Video and Audio/frame_0200.png"
+FRAME_PATH = "Testing/Test Video and Audio/frame_0200.png"
 H5_FILEPATH = "Outputs/Only_Girl_Rihanna_landmarks.h5"
-AUDIO_PATH = "Test Video and Audio/Test Audio Only Girl Riannah.mp3"
-OUTPUT_PATH = "Outputs"
-OUTPUT_FRAMES_PATH = "Outputs/Only_Girl_Riannah"
+AUDIO_PATH = "/Users/teaguesangster/Code/Python/CS450/DataSetup/Testing/Test Video and Audio/Test Audio Only Girl Riannah.mp3"
+OUTPUT_PATH = "Testing/Outputs"
+OUTPUT_FRAMES_PATH = "Testing/Outputs/Only_Girl_Riannah"
 # Assuming these functions are defined elsewhere in your project
 # from your_module import convertVideoIntoSyncedFrames, convertFrameIntoPose, convertFramesIntoHDF5
 current_directory = os.getcwd()
@@ -30,7 +35,7 @@ logging.info("Getting our current test Directory: " + current_directory)
 VIDEO_TO_CONVERT = os.path.join(current_directory, VIDEO_TO_CONVERT)
 FRAME_PATH = os.path.join(current_directory, FRAME_PATH)
 H5_FILEPATH = os.path.join(current_directory, H5_FILEPATH)
-AUDIO_PATH = os.path.join(current_directory, AUDIO_PATH)
+#AUDIO_PATH = os.path.join(current_directory, AUDIO_PATH)
 OUTPUT_PATH = os.path.join(current_directory, OUTPUT_PATH)
 OUTPUT_FRAMES_PATH = os.path.join(current_directory, OUTPUT_FRAMES_PATH)
 

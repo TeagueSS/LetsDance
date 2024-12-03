@@ -3,7 +3,7 @@ import os
 
 from CombineAudioAndVideo import CombineAudioAndVideo
 from ConvertVideo import convertVideoIntoSyncedFrames
-from Testing.Tests import OUTPUT_PATH
+from Tests import OUTPUT_PATH
 from dowload import download_audio, download_and_transcode_video
 
 

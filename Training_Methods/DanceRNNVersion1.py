@@ -2,10 +2,8 @@ import unittest
 import numpy as np
 import os
 from tensorflow.keras.models import load_model
-
 # Import your functions here
-from Training import combine_npz_files, preprocess_data, build_rnn_model, train_rnn_model, evaluate_and_predict, predict_body_mappings
-
+from Training_Methods.Training import combine_npz_files, preprocess_data, build_rnn_model, train_rnn_model, evaluate_and_predict, predict_body_mappings
 # Create mock data for testing
 import numpy as np
 import os

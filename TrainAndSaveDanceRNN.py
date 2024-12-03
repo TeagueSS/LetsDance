@@ -337,7 +337,7 @@ if __name__ == "__main__":
 
     if train_model or not os.path.exists(output_model_path):
         # Train the RNN model with callbacks
-        print("Training the model...")
+        print("Training_Methods the model...")
         epochs = 50
         batch_size = 32
         history = model.fit(
@@ -363,8 +363,14 @@ def predict_body_mappings(model_path, audio_scaler, frame_scaler, audio_input_ar
     """
     Predict body mappings for given audio input sequences using a pre-trained model.
     """
-    # Load the pre-trained model (So we can work on it in batches overnight)
-    model = load_model(model_path)
+    # If model_path is a path, load the model
+    if isinstance(model_path, str):
+        model = load_model(model_path)
+    else:
+        # Assume model_path is already a loaded model
+        model = model_path
+
+
 
     # Normalize the audio input using the scaler (Our encoder)
     audio_input_normalized = audio_scaler.transform(audio_input_array)

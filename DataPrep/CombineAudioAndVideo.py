@@ -6,12 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 import librosa
 import pandas as pd
 
-from AudioHandler import AudioHandler
-from ConvertVideo import convertFrameIntoPose
-from Training.AudioSlicing import AudioFrameProcessor
-from Training.TensorFlowProcessing import TensorFlowDataPrep
+from DataPrep.AudioHandler import AudioHandler
+from DataPrep.ConvertVideo import convertFrameIntoPose
+from DataPrep.AudioSlicing import AudioFrameProcessor
+from Training_Methods.TensorFlowProcessing import TensorFlowDataPrep
 #from dowload import download_audio, download_and_transcode_video
-from encode import SyncedSkeletonDataAndAudio
+from DataPrep.encode import SyncedSkeletonDataAndAudio
 # Initialize a lock for writing to the HDF5 file
 lock = threading.Lock()
 
@@ -59,7 +59,7 @@ class CombineAudioAndVideo:
                 # Here procesing our skeleton frames
                 processed_skeleton = file_handler.process_skeltal_features(landmarks)
 
-            logging.info("Starting our Audio Data Prep Methods and Conversion -> ")
+            logging.info("Starting our Audio DataPrep -> ")
             print("Processing Audio")
 
             with lock:
