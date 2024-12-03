@@ -16,14 +16,14 @@ Lets dance is a School Project for CS450 meant to generate dance routines from i
         (2 environments required, one for processing and one for running)
 
     2. Pick a List of Videos you wish to train your model off of or use the DanceSongs.csv provided in the path.
-     (We are not Liable for the Legal Remifications of downloading, processing and/or training off of youtube Licensed property USE YOUTUBE VIDEOS AT YOUR OWN RISK)
+     (We are not Liable for the Legal Ramifications of downloading, processing and/or training off of youtube Licensed property USE YOUTUBE VIDEOS AT YOUR OWN RISK)
 
     2. Navigate to the DataPrep Folder and open download.py, Now go to the method called process_links and look at the assigned variables above. 
     They are what you will pass this function for your list, where to save, as well as any temporary holding folder for videos that will be deleted after running.
 
-        ^^^^^ This step will take about a day at Downloading, transcoding, splitting, cropping, and then finally encoding for each video is quite intensive. ^^^^
+        ^^^^^ This step will take about a day as Downloading, transcoding, splitting, cropping, and then finally encoding for each video is quite intensive. ^^^^
         This task is optimized for High CPU core counts and uses a ThreadPool based approach. 
-        (This program ran on a 14 Core Apple M3 cpu, threading is highly optomized and will hit your Cores HARD)
+        (This program ran on a 14 Core Apple M3 cpu, threading is highly optimized and will hit your Cores HARD)
         You can make the operation Single threaded by editing the code in CombineAudioAndVideo.py (process_audio_and_video_frames_Multi_Threaded method)
 
     3. Assuming your Data is downloaded and formatted to a folder on your Local machine open TrainAndSaveDanceRNN.py and give it the folder path. 
@@ -44,7 +44,7 @@ Contains all of the needed methods for downloading videos, processing them, and 
 
         Encode: Contains multiple methods for saving data without prepping it for tensorflow
 
-            SyncedSkeletonDataAndAudio: Takes in both SkeletonData and AudioData and allows for their respective "Moments" to be enconded together
+            SyncedSkeletonDataAndAudio: Takes in both SkeletonData and AudioData and allows for their respective "Moments" to be encoded together
 
             SkeletonData:
                 Holds Positional Data for a skeleton
@@ -70,26 +70,26 @@ Contains all of the needed methods for downloading videos, processing them, and 
 
 ## Training 
 
-Contains methods for Training your model with differnt Approaches in each File 
+Contains methods for Training your model with different Approaches in each File 
     
     DanceRNNVersion1, a very simple RNN built on just one LTSM layer and a very simple context window of 10 frames. 
-    (For Testing Puroses Only)
+    (For Testing Purposes Only)
 
     TensorFlow Data Prep: For converting Audio and Skeletal Data to saveable numpy Arrays. 
     -> If a frame needs to be trained on it gets formatted by this guy 
 
 ## Testing 
-Files for testing your imports, that TensorFlow works, your enviorment. 
+Files for testing your imports, that TensorFlow works, your environment. 
     
-    For Video Conversion: Running the last method at the bottom of tests.py should indicate if packages oare installed for Processing.
-    For Model Training: running the script in TestingPerformace.py should see if Tensorflow is running on CPU or GPU. 
+    For Video Conversion: Running the last method at the bottom of tests.py should indicate if packages are installed for Processing.
+    For Model Training: running the script in TestingPerformance.py should see if Tensorflow is running on CPU or GPU. 
 
 
 
 ## Required Packages:
 
     Please Look at the attached .yml files, 
-        -> one is labeled for Downlaoding (Contains Librosa and Youtube downlaod methdos)
+        -> one is labeled for Downloading (Contains Librosa and Youtube download methods)
         -> The other is for running this model using TensorFlow
     
 
