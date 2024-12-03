@@ -86,6 +86,13 @@ Files for testing your imports, that TensorFlow works, your enviorment.
 
 
 
+## Required Packages:
+
+    Please Look at the attached .yml files, 
+        -> one is labeled for Downlaoding (Contains Librosa and Youtube downlaod methdos)
+        -> The other is for running this model using TensorFlow
+    
+
 
 
 
