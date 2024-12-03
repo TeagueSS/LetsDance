@@ -1,9 +1,3 @@
-import librosa
-import numpy as np
-import mediapipe as mp
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from ConvertVideo import convertFrameIntoPose
 import plotly.graph_objects as go
 import librosa
 import librosa.display
