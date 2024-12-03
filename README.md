@@ -13,7 +13,7 @@ Lets dance is a School Project for CS450 meant to generate dance routines from i
 
 # How to Run
     1. Create a new Anaconda Environment and install the packages listed at the bottom: 
-        (2 enviroments required, one for processing and one for running)
+        (2 environments required, one for processing and one for running)
 
     2. Pick a List of Videos you wish to train your model off of or use the DanceSongs.csv provided in the path.
      (We are not Liable for the Legal Remifications of downloading, processing and/or training off of youtube Licensed property USE YOUTUBE VIDEOS AT YOUR OWN RISK)
